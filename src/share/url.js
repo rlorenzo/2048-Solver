@@ -22,7 +22,7 @@ export function decodeMoves(str) {
   const length = parseInt(lenStr, 36);
   if (!Number.isFinite(length) || length < 0) return [];
   const bytes = fromB64(b64);
-  const moves = new Array(length);
+  const moves = Array.from({ length });
   for (let i = 0; i < length; i++) {
     const b = i >> 2;
     const shift = (i & 3) * 2;

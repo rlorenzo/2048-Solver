@@ -79,18 +79,8 @@ export function move(board, dir) {
     score += s;
     for (let k = 0; k < 4; k++) {
       const idx = readIndex(dir, line, k);
-      if (out[idx] !== newRow[k]) moved = moved || true;
       out[idx] = newRow[k];
-    }
-  }
-
-  // Check if moved by comparing
-  if (!moved) {
-    for (let i = 0; i < CELLS; i++) {
-      if (out[i] !== b[i]) {
-        moved = true;
-        break;
-      }
+      if (newRow[k] !== row[k]) moved = true;
     }
   }
 

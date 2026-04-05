@@ -15,9 +15,8 @@ function adaptiveDepth(b, userDepth) {
   // Fewer empty cells means branching shrinks, so we can afford more depth
   // AND we need it because the game is getting precarious.
   if (empties <= 3) return 7;
-  if (empties <= 5) return 6;
-  if (empties <= 7) return 5;
-  return 4;
+  if (empties <= 6) return 6;
+  return 5;
 }
 
 export function bestMove(board, userDepth = "auto") {
