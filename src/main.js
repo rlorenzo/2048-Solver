@@ -120,10 +120,13 @@ function applyMove(dir, opts = {}) {
   return true;
 }
 
+// FNV-1a–like hash: deterministic mapping from (seed, move-path) to a uint32
+// spawn-RNG seed. This ensures each branch in the move tree gets its own
+// reproducible tile spawns, even after rollback + divergence.
 function hashPath(seed, moves) {
   let h = seed >>> 0;
   for (const m of moves) {
-    h = (h * 2654435761 + m) >>> 0;
+    h = (h * 0x9e3779b1 + m) >>> 0; // Knuth multiplicative hash step
     h ^= h >>> 16;
   }
   return h >>> 0;

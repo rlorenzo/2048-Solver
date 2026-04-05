@@ -158,6 +158,8 @@ export function getCell(board, pos) {
   return (board[row] >> (4 * col)) & 0xf;
 }
 
+// --- Helpers exported for tests; not used in production code paths. ---
+
 export function setCellInPlace(board, pos, exp) {
   const row = pos >> 2;
   const col = pos & 3;
@@ -169,6 +171,8 @@ export function withCell(board, pos, exp) {
   setCellInPlace(out, pos, exp);
   return out;
 }
+
+// --- End test-only helpers. ---
 
 export function boardsEqual(a, b) {
   return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
@@ -228,16 +232,20 @@ export function canMove(board) {
 // --- Conversion to/from the UI's Uint8Array(16) board representation
 // (which stores log2(value) directly at cell-index positions).
 
+// Convert Uint8Array(16) board (log2 values at positions 0–15, row-major)
+// into Uint16Array(4) bitboard (4-bit cells packed left-to-right per row).
+// Position i maps to row i>>2, column i&3, nibble offset 4*(i&3).
 export function fromBytes(bytes) {
   const out = new Uint16Array(4);
   for (let i = 0; i < 16; i++) {
-    const row = i >> 2;
-    const col = i & 3;
-    out[row] |= (bytes[i] & 0xf) << (4 * col);
+    const row = i >> 2; // which row (0–3)
+    const col = i & 3; // which column (0–3)
+    out[row] |= (bytes[i] & 0xf) << (4 * col); // pack into 4-bit nibble
   }
   return out;
 }
 
+// Inverse of fromBytes: unpack bitboard into Uint8Array(16).
 export function toBytes(board) {
   const out = new Uint8Array(16);
   for (let i = 0; i < 16; i++) {
