@@ -20,17 +20,31 @@ export function encodeMoves(moves) {
   return toB64(bytes) + "." + moves.length.toString(36);
 }
 
+// Strict integer regexes — reject partial parses like "123abc" that parseInt
+// would accept, and any sign/whitespace/garbage. Base-10 for seed/cursor,
+// base-36 for the move-count suffix.
+const NONNEG_INT_RE = /^\d+$/;
+const INT_RE = /^-?\d+$/;
+const BASE36_RE = /^[0-9a-z]+$/;
+
 export function decodeMoves(str) {
   if (!str) return [];
   const dot = str.indexOf(".");
   if (dot < 0) return [];
   const b64 = str.slice(0, dot);
   const lenStr = str.slice(dot + 1);
+  if (!BASE36_RE.test(lenStr)) return [];
   const length = parseInt(lenStr, 36);
   if (!Number.isFinite(length) || length < 0 || length > MAX_MOVES) return [];
+  // Reject oversized base64url payloads BEFORE decoding — otherwise a URL
+  // like `m=<megabytes of b64>.<tiny len>` still forces fromB64 to walk the
+  // whole string.
+  const byteLength = Math.ceil(length / 4);
+  const rem = byteLength % 3;
+  const maxB64Length = Math.floor(byteLength / 3) * 4 + (rem === 0 ? 0 : rem + 1);
+  if (b64.length > maxB64Length) return [];
   const bytes = fromB64(b64);
-  // Verify the encoded bytes can contain `length` moves
-  if (bytes.length < Math.ceil(length / 4)) return [];
+  if (bytes.length < byteLength) return [];
   const moves = Array.from({ length });
   for (let i = 0; i < length; i++) {
     const b = i >> 2;
@@ -93,17 +107,19 @@ export function decodeState(hash) {
   const s = hash.startsWith("#") ? hash.slice(1) : hash;
   const params = new URLSearchParams(s);
   const seedRaw = params.get("s");
-  if (seedRaw === null) return null;
+  if (seedRaw === null || !NONNEG_INT_RE.test(seedRaw)) return null;
   const seed = parseInt(seedRaw, 10);
-  if (!Number.isFinite(seed)) return null;
+  if (!Number.isFinite(seed) || seed > 0xffffffff) return null;
   const moves = decodeMoves(params.get("m") ?? "");
   const cursorRaw = params.get("p");
   let cursor;
   if (cursorRaw === null) {
     cursor = moves.length;
-  } else {
+  } else if (INT_RE.test(cursorRaw)) {
     const parsed = parseInt(cursorRaw, 10);
-    cursor = Number.isFinite(parsed) ? Math.max(0, Math.min(parsed, moves.length)) : moves.length;
+    cursor = Math.max(0, Math.min(parsed, moves.length));
+  } else {
+    cursor = moves.length;
   }
   return { seed: seed >>> 0, moves, cursor };
 }

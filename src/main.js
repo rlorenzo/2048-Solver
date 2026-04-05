@@ -315,8 +315,16 @@ window.addEventListener("keydown", (e) => {
 
 btnNew.addEventListener("click", () => {
   const raw = seedInput.value.trim();
-  const seed = raw === "" ? randomSeed() : parseInt(raw, 10) >>> 0;
-  newGame(Number.isFinite(seed) ? seed : randomSeed());
+  let seed;
+  if (raw === "") {
+    seed = randomSeed();
+  } else {
+    // Validate parse BEFORE `>>> 0` — otherwise "abc" parses to NaN and
+    // `NaN >>> 0 === 0`, silently accepting garbage as seed 0.
+    const parsed = parseInt(raw, 10);
+    seed = Number.isFinite(parsed) ? parsed >>> 0 : randomSeed();
+  }
+  newGame(seed);
 });
 
 btnUndo.addEventListener("click", () => {

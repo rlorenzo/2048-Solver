@@ -46,9 +46,14 @@ export class History {
     return this.nodes.get(id);
   }
 
-  // Record a move + spawn as a child of cursor. If that exact (dir) child
-  // already exists and its spawn matches, reuse it; otherwise create a new
-  // branch. Advances the cursor.
+  // Record a move as a child of the current cursor and advance the cursor.
+  //
+  // Invariant: spawns are path-deterministic in our flow (each move's RNG is
+  // seeded from the root seed + directions-from-root), so calling record()
+  // twice for the same (cursor, dir) is guaranteed to yield the same board,
+  // score, and spawn. We therefore reuse an existing (cursor, dir) child
+  // unconditionally — validating the passed newBoard/score/spawn here would
+  // only be able to catch caller bugs elsewhere. `dir` is the sole key.
   record(dir, newBoard, score, spawn) {
     const cur = this.current();
     const existingId = cur.children.get(dir);

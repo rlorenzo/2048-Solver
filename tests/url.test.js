@@ -71,4 +71,24 @@ describe("encodeState / decodeState", () => {
   it("rejects garbage seeds", () => {
     expect(decodeState("#s=notanumber")).toBeNull();
   });
+
+  it("rejects partial-number seeds (e.g. 123abc)", () => {
+    expect(decodeState("#s=123abc")).toBeNull();
+  });
+
+  it("rejects seeds outside uint32 range", () => {
+    expect(decodeState("#s=99999999999")).toBeNull();
+  });
+
+  it("rejects oversized base64 payload with tiny declared length", () => {
+    // A huge base64 prefix paired with a length claiming only 4 moves should
+    // be rejected before we spend time decoding the payload.
+    const longB64 = "A".repeat(10000);
+    expect(decodeMoves(longB64 + ".4")).toEqual([]);
+  });
+
+  it("rejects base64 with invalid characters", () => {
+    // "@" is outside the alphabet
+    expect(decodeMoves("@@@@.4")).toEqual([]);
+  });
 });
