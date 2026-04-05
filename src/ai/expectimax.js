@@ -1,22 +1,22 @@
-// Expectimax search for 2048.
-// Player moves: maximize. Chance node (tile spawn): weighted average over
-// empty cells × {2 value (0.9), 4 value (0.1)}.
+// Expectimax search on the bitboard. Max node iterates over 4 directions;
+// chance node iterates over empty cells × {2,4}. Transposition table keyed
+// by (board, depth) in a single Map.
 
-import { move, emptyCells, canMove } from "../game/board.js";
+import { move, countEmpty, canMove, keyOf, setCellInPlace } from "./bitboard.js";
 import { evaluate } from "./heuristics.js";
 
-// Transposition cache keyed by board bytes + depth. Cleared per search.
+// Transposition cache, reset per search.
 let cache;
+// Probability threshold: prune chance branches whose weight is below this.
+const PROB_THRESHOLD = 0.0001;
 
-// Depth to search. Adaptive: deeper when board is more full.
-function adaptiveDepth(b, userDepth) {
+function adaptiveDepth(board, userDepth) {
   if (userDepth !== "auto") return userDepth;
-  const empties = emptyCells(b).length;
-  // Fewer empty cells means branching shrinks, so we can afford more depth
-  // AND we need it because the game is getting precarious.
-  if (empties <= 3) return 7;
-  if (empties <= 6) return 6;
-  return 5;
+  const empties = countEmpty(board);
+  // Deeper when danger is higher, shallower when early game.
+  if (empties <= 3) return 8;
+  if (empties <= 6) return 7;
+  return 6;
 }
 
 export function bestMove(board, userDepth = "auto") {
@@ -33,10 +33,10 @@ export function bestMove(board, userDepth = "auto") {
       scores[d] = -Infinity;
       continue;
     }
-    const score = chanceNode(r.board, depth - 1, 1.0);
-    scores[d] = score;
-    if (score > bestScore) {
-      bestScore = score;
+    const s = chanceNode(r.board, depth - 1, 1.0);
+    scores[d] = s;
+    if (s > bestScore) {
+      bestScore = s;
       bestDir = d;
     }
   }
@@ -44,60 +44,63 @@ export function bestMove(board, userDepth = "auto") {
   return { dir: bestDir, scores, depth };
 }
 
-function cacheKey(b, depth) {
-  // Board packs 16 cells × 4 bits into 64 bits
-  let hi = 0;
-  let lo = 0;
-  for (let i = 0; i < 8; i++) lo = (lo * 16 + b[i]) >>> 0;
-  for (let i = 8; i < 16; i++) hi = (hi * 16 + b[i]) >>> 0;
-  return `${hi}:${lo}:${depth}`;
-}
+function maxNode(board, depth, prob) {
+  if (depth <= 0 || prob < PROB_THRESHOLD) return evaluate(board);
+  if (!canMove(board)) return evaluate(board);
 
-function maxNode(b, depth, prob) {
-  if (depth <= 0 || prob < 0.0001) return evaluate(b);
-  if (!canMove(b)) return evaluate(b);
-
-  const key = cacheKey(b, depth | 0x1000);
+  const key = keyOf(board) + "m" + depth;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
 
   let best = -Infinity;
   for (let d = 0; d < 4; d++) {
-    const r = move(b, d);
+    const r = move(board, d);
     if (!r.moved) continue;
     const s = chanceNode(r.board, depth - 1, prob);
     if (s > best) best = s;
   }
-  if (best === -Infinity) best = evaluate(b);
+  if (best === -Infinity) best = evaluate(board);
   cache.set(key, best);
   return best;
 }
 
-function chanceNode(b, depth, prob) {
-  if (depth <= 0 || prob < 0.0001) return evaluate(b);
+function chanceNode(board, depth, prob) {
+  if (depth <= 0 || prob < PROB_THRESHOLD) return evaluate(board);
 
-  const empties = emptyCells(b);
-  if (empties.length === 0) return maxNode(b, depth, prob);
+  // Enumerate empty positions
+  const positions = [];
+  for (let pos = 0; pos < 16; pos++) {
+    const row = pos >> 2;
+    const col = pos & 3;
+    if (((board[row] >> (4 * col)) & 0xf) === 0) positions.push(pos);
+  }
+  if (positions.length === 0) return maxNode(board, depth, prob);
 
-  const key = cacheKey(b, depth);
+  const key = keyOf(board) + "c" + depth;
   const hit = cache.get(key);
   if (hit !== undefined) return hit;
 
-  // Probability per empty cell
-  const perCell = 1 / empties.length;
-  const probPerBranch = prob * perCell;
-
+  const perCell = 1 / positions.length;
+  const branchProb = prob * perCell;
+  // Mutate board in place, then restore (faster than allocating per child).
   let sum = 0;
-  for (const pos of empties) {
-    // 90% chance of 2 (exp=1)
-    b[pos] = 1;
-    sum += 0.9 * perCell * maxNode(b, depth - 1, probPerBranch * 0.9);
-    // 10% chance of 4 (exp=2)
-    b[pos] = 2;
-    sum += 0.1 * perCell * maxNode(b, depth - 1, probPerBranch * 0.1);
-    b[pos] = 0;
+  for (const pos of positions) {
+    const row = pos >> 2;
+    const col = pos & 3;
+    const orig = board[row];
+    // Tile value 2 (exp=1), probability 0.9
+    board[row] = orig | (1 << (4 * col));
+    sum += 0.9 * perCell * maxNode(board, depth - 1, branchProb * 0.9);
+    // Tile value 4 (exp=2), probability 0.1
+    board[row] = orig | (2 << (4 * col));
+    sum += 0.1 * perCell * maxNode(board, depth - 1, branchProb * 0.1);
+    // Restore
+    board[row] = orig;
   }
 
   cache.set(key, sum);
   return sum;
 }
+
+// Exposed for tests/sanity checks.
+export { setCellInPlace };
