@@ -14,12 +14,10 @@
 import { cloneBoard } from "./board.js";
 
 export class History {
-  constructor(rootBoard, initialSpawns) {
+  constructor(rootBoard) {
     this.nodes = new Map();
     this.nextId = 0;
     this.root = this._add(null, null, null, cloneBoard(rootBoard), 0);
-    // Attach initial spawns to the root for replay purposes
-    this.nodes.get(this.root).initialSpawns = initialSpawns;
     this.cursor = this.root;
   }
 

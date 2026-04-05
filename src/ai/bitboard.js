@@ -9,11 +9,12 @@
 // tables. UP/DOWN do the column equivalent by extracting columns into row-
 // sized integers, looking up the slide, then scattering back.
 
+import { DIR, DIR_NAMES } from "../game/constants.js";
+
+export { DIR, DIR_NAMES };
+
 export const CELLS = 16;
 export const SIZE = 4;
-
-export const DIR = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
-export const DIR_NAMES = ["U", "R", "D", "L"];
 
 // --- Slide a single 4-cell row to the left (toward column 0).
 // Given a row as [c0, c1, c2, c3], slide non-zero cells left, merging equal

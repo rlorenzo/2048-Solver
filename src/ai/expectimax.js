@@ -8,7 +8,7 @@
 // probabilities would compute and then cache different answers. Depth is the
 // sole budget; that's sufficient given our adaptive-depth bounds.
 
-import { move, countEmpty, canMove, keyOf, setCellInPlace } from "./bitboard.js";
+import { move, countEmpty, canMove, keyOf } from "./bitboard.js";
 import { evaluate } from "./heuristics.js";
 
 // Transposition cache, reset per search.
@@ -104,6 +104,3 @@ function chanceNode(board, depth) {
   cache.set(key, sum);
   return sum;
 }
-
-// Exposed for tests/sanity checks.
-export { setCellInPlace };

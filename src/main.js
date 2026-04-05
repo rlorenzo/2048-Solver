@@ -40,7 +40,7 @@ const btnBranchNext = document.getElementById("btn-branch-next");
 // --- Game state
 const boardRenderer = createBoardRenderer(boardEl);
 const timelineRenderer = createTimelineRenderer(timelineEl, (nodeId) => {
-  state.history.jumpTo(nodeId);
+  if (!state.history.jumpTo(nodeId)) return;
   renderAll();
   syncURL();
 });
@@ -68,12 +68,13 @@ function updateSpeedLabel() {
 
 function newGame(seed, replayMoves = [], replayCursor = null) {
   if (aiRunning) stopAI();
+  // Invalidate any in-flight AI requests — their onMessage callbacks check
+  // `e.data.id !== id` and will silently drop stale results.
+  aiRequestId++;
   const actualSeed = seed >>> 0;
   const rng = mulberry32(actualSeed);
-  const { board, spawns } = initialBoard(rng);
-  const history = new History(board, spawns);
-  // Store rng on history root so we can continue generating the same stream
-  history.get(history.root).rng = rng;
+  const { board } = initialBoard(rng);
+  const history = new History(board);
   state = { seed: actualSeed, history };
   seedInput.value = String(actualSeed);
 
@@ -247,7 +248,7 @@ async function aiStep() {
     return;
   }
   const { dir } = await requestAIMove();
-  if (dir < 0) {
+  if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
     stopAI();
     return;
   }
@@ -367,7 +368,7 @@ function cycleBranch(delta) {
   if (sibs.length < 2) return;
   const idx = sibs.indexOf(state.history.cursor);
   const next = sibs[(idx + delta + sibs.length) % sibs.length];
-  state.history.jumpTo(next);
+  if (!state.history.jumpTo(next)) return;
   renderAll();
   syncURL();
 }

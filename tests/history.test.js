@@ -9,7 +9,7 @@ function makeBoard(seed) {
 
 describe("History", () => {
   it("tracks cursor and depth", () => {
-    const h = new History(makeBoard(1), []);
+    const h = new History(makeBoard(1));
     expect(h.depth()).toBe(0);
     h.record(0, makeBoard(2), 4, { pos: 1, exp: 1 });
     h.record(1, makeBoard(3), 8, { pos: 2, exp: 1 });
@@ -18,7 +18,7 @@ describe("History", () => {
   });
 
   it("stepBack and stepForward", () => {
-    const h = new History(makeBoard(1), []);
+    const h = new History(makeBoard(1));
     h.record(0, makeBoard(2), 4, null);
     h.record(1, makeBoard(3), 8, null);
     h.stepBack();
@@ -31,7 +31,7 @@ describe("History", () => {
   });
 
   it("creates new branch when cursor is rewound and a different dir is played", () => {
-    const h = new History(makeBoard(1), []);
+    const h = new History(makeBoard(1));
     h.record(0, makeBoard(2), 4, null); // branch A, move UP
     h.record(1, makeBoard(3), 8, null); // continue A
     h.stepBack(); // back to node after UP
@@ -41,7 +41,7 @@ describe("History", () => {
   });
 
   it("reuses identical-spawn child on replay", () => {
-    const h = new History(makeBoard(1), []);
+    const h = new History(makeBoard(1));
     const spawnA = { pos: 3, exp: 1 };
     const childId = h.record(0, makeBoard(2), 4, spawnA);
     h.stepBack();
@@ -51,7 +51,7 @@ describe("History", () => {
   });
 
   it("movesFromRoot returns directions along path", () => {
-    const h = new History(makeBoard(1), []);
+    const h = new History(makeBoard(1));
     h.record(0, makeBoard(2), 0, null);
     h.record(1, makeBoard(3), 0, null);
     h.record(2, makeBoard(4), 0, null);
@@ -59,7 +59,7 @@ describe("History", () => {
   });
 
   it("branchPointsOnPath identifies forks", () => {
-    const h = new History(makeBoard(1), []);
+    const h = new History(makeBoard(1));
     h.record(0, makeBoard(2), 0, null);
     const forkNodeId = h.current().id;
     h.record(1, makeBoard(3), 0, null);

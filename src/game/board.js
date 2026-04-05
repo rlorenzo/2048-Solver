@@ -2,11 +2,12 @@
 // Board represented as Uint8Array of length 16, storing log2(value), 0 = empty.
 // So value 2 -> 1, value 4 -> 2, ..., 2048 -> 11.
 
+import { DIR, DIR_NAMES } from "./constants.js";
+
+export { DIR, DIR_NAMES };
+
 export const SIZE = 4;
 export const CELLS = SIZE * SIZE;
-
-export const DIR = { UP: 0, RIGHT: 1, DOWN: 2, LEFT: 3 };
-export const DIR_NAMES = ["U", "R", "D", "L"];
 
 export function emptyBoard() {
   return new Uint8Array(CELLS);
