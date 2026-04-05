@@ -11,9 +11,15 @@ describe("encodeMoves / decodeMoves", () => {
     expect(decodeMoves(encodeMoves(seq))).toEqual(seq);
   });
 
-  it("round-trips long random sequences", () => {
+  it("round-trips long pseudo-random sequences deterministically", () => {
+    // Deterministic PRNG so failures reproduce across runs.
+    let a = 0xdead_beef;
+    const next = () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      return a & 3;
+    };
     const seq = [];
-    for (let i = 0; i < 1000; i++) seq.push(Math.floor(Math.random() * 4));
+    for (let i = 0; i < 1000; i++) seq.push(next());
     expect(decodeMoves(encodeMoves(seq))).toEqual(seq);
   });
 });

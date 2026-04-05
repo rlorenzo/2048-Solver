@@ -42,6 +42,7 @@ const boardRenderer = createBoardRenderer(boardEl);
 const timelineRenderer = createTimelineRenderer(timelineEl, (nodeId) => {
   state.history.jumpTo(nodeId);
   renderAll();
+  syncURL();
 });
 
 let state = null; // { seed, rng, history }

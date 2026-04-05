@@ -55,15 +55,24 @@ function toB64(bytes) {
   return out;
 }
 
+const B64_LOOKUP = new Int8Array(128).fill(-1);
+for (let i = 0; i < ALPHABET.length; i++) B64_LOOKUP[ALPHABET.charCodeAt(i)] = i;
+
+function b64CharValue(str, i) {
+  if (i >= str.length) return 0;
+  const code = str.charCodeAt(i);
+  if (code > 127) return -1;
+  return B64_LOOKUP[code];
+}
+
 function fromB64(str) {
-  const lookup = new Int8Array(128).fill(-1);
-  for (let i = 0; i < ALPHABET.length; i++) lookup[ALPHABET.charCodeAt(i)] = i;
   const bytes = [];
   for (let i = 0; i < str.length; i += 4) {
-    const c0 = lookup[str.charCodeAt(i)] ?? 0;
-    const c1 = lookup[str.charCodeAt(i + 1)] ?? 0;
-    const c2 = i + 2 < str.length ? lookup[str.charCodeAt(i + 2)] : 0;
-    const c3 = i + 3 < str.length ? lookup[str.charCodeAt(i + 3)] : 0;
+    const c0 = b64CharValue(str, i);
+    const c1 = b64CharValue(str, i + 1);
+    const c2 = b64CharValue(str, i + 2);
+    const c3 = b64CharValue(str, i + 3);
+    if (c0 < 0 || c1 < 0 || c2 < 0 || c3 < 0) return new Uint8Array(0);
     const n = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
     bytes.push((n >> 16) & 0xff);
     if (i + 2 < str.length) bytes.push((n >> 8) & 0xff);

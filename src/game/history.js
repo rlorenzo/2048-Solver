@@ -53,19 +53,12 @@ export class History {
     const cur = this.current();
     const existingId = cur.children.get(dir);
     if (existingId !== undefined) {
-      const existing = this.nodes.get(existingId);
-      // If spawn matches, reuse. Otherwise, the existing subtree represents
-      // a different random roll — we replace it with a fresh branch.
-      if (
-        (existing.spawn?.pos === spawn?.pos && existing.spawn?.exp === spawn?.exp) ||
-        (spawn === null && existing.spawn === null)
-      ) {
-        this.cursor = existingId;
-        return existingId;
-      }
-      // Mismatched spawn — detach the old child (keep its tree accessible
-      // via siblings map below).
-      cur.children.delete(dir);
+      // Spawns are path-deterministic in our flow (the RNG for each move is
+      // derived from seed + directions-from-root), so the same (parent, dir)
+      // always produces the same spawn. Reuse the existing child rather than
+      // replacing — replacing would orphan the entire subtree under it.
+      this.cursor = existingId;
+      return existingId;
     }
     const id = this._add(cur.id, dir, spawn, newBoard, score);
     this.cursor = id;
