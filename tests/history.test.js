@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { History } from "../src/game/history.js";
 
 function makeBoard(seed) {

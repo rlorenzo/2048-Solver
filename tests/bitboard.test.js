@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { move as byteMove, canMove as byteCanMove } from "../src/game/board.js";
 import {
   DIR,

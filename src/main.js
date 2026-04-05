@@ -50,7 +50,7 @@ let aiTimer = null;
 let aiWorker = null;
 let aiRequestId = 0;
 
-// Speed slider -> moves per second. 0 means manual.
+// Speed slider -> moves per second. Slider values 0..6 map into SPEEDS.
 const SPEEDS = [1, 2, 4, 8, 16, 40, 200]; // per second
 
 function speedMs() {

@@ -3,6 +3,9 @@
 // Moves are packed 4 per byte (2 bits each: U=0 R=1 D=2 L=3).
 
 const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+// Hard cap on decoded move count to bound allocations from untrusted URLs.
+// 50k moves is well beyond any realistic 2048 game.
+const MAX_MOVES = 50000;
 
 export function encodeMoves(moves) {
   if (moves.length === 0) return "";
@@ -12,16 +15,22 @@ export function encodeMoves(moves) {
     const shift = (i & 3) * 2;
     bytes[b] |= (moves[i] & 3) << shift;
   }
-  // Prefix with move count (as base64 varint) so we know where to stop.
+  // Append move count as a base-36 suffix after a "." so the decoder knows
+  // how many moves to extract (the last byte may carry padding bits).
   return toB64(bytes) + "." + moves.length.toString(36);
 }
 
 export function decodeMoves(str) {
   if (!str) return [];
-  const [b64, lenStr] = str.split(".");
+  const dot = str.indexOf(".");
+  if (dot < 0) return [];
+  const b64 = str.slice(0, dot);
+  const lenStr = str.slice(dot + 1);
   const length = parseInt(lenStr, 36);
-  if (!Number.isFinite(length) || length < 0) return [];
+  if (!Number.isFinite(length) || length < 0 || length > MAX_MOVES) return [];
   const bytes = fromB64(b64);
+  // Verify the encoded bytes can contain `length` moves
+  if (bytes.length < Math.ceil(length / 4)) return [];
   const moves = Array.from({ length });
   for (let i = 0; i < length; i++) {
     const b = i >> 2;
@@ -73,11 +82,19 @@ export function encodeState({ seed, moves, cursor }) {
 export function decodeState(hash) {
   if (!hash || hash === "#") return null;
   const s = hash.startsWith("#") ? hash.slice(1) : hash;
-  const params = new URLSearchParams(s.replaceAll("&", "&"));
-  const seed = params.get("s");
-  if (seed === null) return null;
+  const params = new URLSearchParams(s);
+  const seedRaw = params.get("s");
+  if (seedRaw === null) return null;
+  const seed = parseInt(seedRaw, 10);
+  if (!Number.isFinite(seed)) return null;
   const moves = decodeMoves(params.get("m") ?? "");
   const cursorRaw = params.get("p");
-  const cursor = cursorRaw === null ? moves.length : parseInt(cursorRaw, 10);
-  return { seed: parseInt(seed, 10) >>> 0, moves, cursor };
+  let cursor;
+  if (cursorRaw === null) {
+    cursor = moves.length;
+  } else {
+    const parsed = parseInt(cursorRaw, 10);
+    cursor = Number.isFinite(parsed) ? Math.max(0, Math.min(parsed, moves.length)) : moves.length;
+  }
+  return { seed: seed >>> 0, moves, cursor };
 }

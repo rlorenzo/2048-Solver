@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { encodeMoves, decodeMoves, encodeState, decodeState } from "../src/share/url.js";
 
 describe("encodeMoves / decodeMoves", () => {
@@ -45,5 +45,24 @@ describe("encodeState / decodeState", () => {
     expect(d.seed).toBe(42);
     expect(d.moves).toEqual([]);
     expect(d.cursor).toBe(0);
+  });
+
+  it("clamps cursor to [0, moves.length]", () => {
+    const hash = encodeState({ seed: 1, moves: [0, 1, 2], cursor: 1 });
+    // Manually craft out-of-range cursor
+    const highCursor = hash.replace("p=1", "p=999");
+    expect(decodeState(highCursor).cursor).toBe(3);
+    const negCursor = hash.replace("p=1", "p=-5");
+    expect(decodeState(negCursor).cursor).toBe(0);
+  });
+
+  it("rejects absurd move counts to prevent DoS", () => {
+    // Craft a string claiming an enormous length
+    const bogus = "A.zzzzzzz";
+    expect(decodeMoves(bogus)).toEqual([]);
+  });
+
+  it("rejects garbage seeds", () => {
+    expect(decodeState("#s=notanumber")).toBeNull();
   });
 });

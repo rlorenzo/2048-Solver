@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect } from "vite-plus/test";
 import { fromBytes } from "../src/ai/bitboard.js";
 import { bestMove } from "../src/ai/expectimax.js";
 import { evaluate } from "../src/ai/heuristics.js";
