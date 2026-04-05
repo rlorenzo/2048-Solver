@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2048 Solver</title>
+  </head>
+  <body>
+    <div id="app">
+      <header class="app-header">
+        <h1>2048 Solver</h1>
+        <div class="scoreboard">
+          <div class="score-box">
+            <span class="score-label">Score</span>
+            <span id="score" class="score-value">0</span>
+          </div>
+          <div class="score-box">
+            <span class="score-label">Best Tile</span>
+            <span id="best-tile" class="score-value">0</span>
+          </div>
+          <div class="score-box">
+            <span class="score-label">Move</span>
+            <span id="move-count" class="score-value">0</span>
+          </div>
+        </div>
+      </header>
+
+      <main>
+        <div id="board" class="board" aria-label="2048 board"></div>
+
+        <div id="status" class="status" aria-live="polite"></div>
+
+        <section class="controls">
+          <div class="control-row">
+            <button id="btn-new" class="btn primary">New Game</button>
+            <label class="seed-input">
+              Seed:
+              <input id="seed" type="text" inputmode="numeric" placeholder="random" />
+            </label>
+          </div>
+
+          <div class="control-row">
+            <button id="btn-undo" class="btn" title="Rewind one move (←)">◀ Step</button>
+            <button id="btn-redo" class="btn" title="Step forward one move (→)">Step ▶</button>
+            <button id="btn-playpause" class="btn">AI Play</button>
+            <button id="btn-stop" class="btn">Stop</button>
+          </div>
+
+          <div class="control-row">
+            <label class="speed-input">
+              AI Speed:
+              <input id="speed" type="range" min="0" max="6" value="3" step="1" />
+              <span id="speed-label">4/s</span>
+            </label>
+            <label class="depth-input">
+              AI Depth:
+              <select id="depth">
+                <option value="auto" selected>Auto (strong)</option>
+                <option value="3">3 (fast)</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7 (slow)</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="control-row">
+            <button id="btn-share" class="btn">Copy Share Link</button>
+            <button id="btn-branch-prev" class="btn" title="Previous branch">⎇ Prev</button>
+            <button id="btn-branch-next" class="btn" title="Next branch">⎇ Next</button>
+            <span id="branch-label" class="branch-label"></span>
+          </div>
+        </section>
+
+        <section class="timeline-wrapper">
+          <div class="timeline-header">
+            <span>Timeline</span>
+            <span id="timeline-position" class="timeline-position">0 / 0</span>
+          </div>
+          <div id="timeline" class="timeline"></div>
+          <div class="timeline-legend">
+            <span class="legend-item"><span class="tick tick-up"></span>Up</span>
+            <span class="legend-item"><span class="tick tick-right"></span>Right</span>
+            <span class="legend-item"><span class="tick tick-down"></span>Down</span>
+            <span class="legend-item"><span class="tick tick-left"></span>Left</span>
+            <span class="legend-item"><span class="tick tick-turn"></span>Direction change</span>
+            <span class="legend-item"><span class="tick tick-branch"></span>Branch point</span>
+          </div>
+        </section>
+      </main>
+
+      <footer class="app-footer">
+        <p>
+          Arrow keys to play · <kbd>←</kbd>/<kbd>→</kbd> with Shift to scrub timeline ·
+          <kbd>Space</kbd> toggle AI · <kbd>N</kbd> new game
+        </p>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

@@ -1,0 +1,83 @@
+// Encode/decode game state in the URL hash.
+// Format: #s=<seed>&m=<base64url-moves>&p=<cursor-position>
+// Moves are packed 4 per byte (2 bits each: U=0 R=1 D=2 L=3).
+
+const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+
+export function encodeMoves(moves) {
+  if (moves.length === 0) return "";
+  const bytes = new Uint8Array(Math.ceil(moves.length / 4));
+  for (let i = 0; i < moves.length; i++) {
+    const b = i >> 2;
+    const shift = (i & 3) * 2;
+    bytes[b] |= (moves[i] & 3) << shift;
+  }
+  // Prefix with move count (as base64 varint) so we know where to stop.
+  return toB64(bytes) + "." + moves.length.toString(36);
+}
+
+export function decodeMoves(str) {
+  if (!str) return [];
+  const [b64, lenStr] = str.split(".");
+  const length = parseInt(lenStr, 36);
+  if (!Number.isFinite(length) || length < 0) return [];
+  const bytes = fromB64(b64);
+  const moves = new Array(length);
+  for (let i = 0; i < length; i++) {
+    const b = i >> 2;
+    const shift = (i & 3) * 2;
+    moves[i] = (bytes[b] >> shift) & 3;
+  }
+  return moves;
+}
+
+function toB64(bytes) {
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 3) {
+    const b0 = bytes[i];
+    const b1 = bytes[i + 1] ?? 0;
+    const b2 = bytes[i + 2] ?? 0;
+    const n = (b0 << 16) | (b1 << 8) | b2;
+    out += ALPHABET[(n >> 18) & 63];
+    out += ALPHABET[(n >> 12) & 63];
+    if (i + 1 < bytes.length) out += ALPHABET[(n >> 6) & 63];
+    if (i + 2 < bytes.length) out += ALPHABET[n & 63];
+  }
+  return out;
+}
+
+function fromB64(str) {
+  const lookup = new Int8Array(128).fill(-1);
+  for (let i = 0; i < ALPHABET.length; i++) lookup[ALPHABET.charCodeAt(i)] = i;
+  const bytes = [];
+  for (let i = 0; i < str.length; i += 4) {
+    const c0 = lookup[str.charCodeAt(i)] ?? 0;
+    const c1 = lookup[str.charCodeAt(i + 1)] ?? 0;
+    const c2 = i + 2 < str.length ? lookup[str.charCodeAt(i + 2)] : 0;
+    const c3 = i + 3 < str.length ? lookup[str.charCodeAt(i + 3)] : 0;
+    const n = (c0 << 18) | (c1 << 12) | (c2 << 6) | c3;
+    bytes.push((n >> 16) & 0xff);
+    if (i + 2 < str.length) bytes.push((n >> 8) & 0xff);
+    if (i + 3 < str.length) bytes.push(n & 0xff);
+  }
+  return new Uint8Array(bytes);
+}
+
+export function encodeState({ seed, moves, cursor }) {
+  const parts = [`s=${seed >>> 0}`];
+  if (moves.length > 0) parts.push(`m=${encodeMoves(moves)}`);
+  if (cursor !== undefined && cursor !== moves.length) parts.push(`p=${cursor}`);
+  return "#" + parts.join("&");
+}
+
+export function decodeState(hash) {
+  if (!hash || hash === "#") return null;
+  const s = hash.startsWith("#") ? hash.slice(1) : hash;
+  const params = new URLSearchParams(s.replaceAll("&", "&"));
+  const seed = params.get("s");
+  if (seed === null) return null;
+  const moves = decodeMoves(params.get("m") ?? "");
+  const cursorRaw = params.get("p");
+  const cursor = cursorRaw === null ? moves.length : parseInt(cursorRaw, 10);
+  return { seed: parseInt(seed, 10) >>> 0, moves, cursor };
+}
