@@ -28,8 +28,11 @@ function slideLeft(cells) {
     const v = cells[i];
     if (v === 0) continue;
     if (prev === v) {
-      out[idx - 1] = v + 1;
-      score += 1 << (v + 1);
+      // Saturate at 0xf (exp 15 = tile 32768) so merging two 15s doesn't
+      // wrap to 0 when packed into a 4-bit nibble by packRow().
+      const merged = Math.min(v + 1, 0xf);
+      out[idx - 1] = merged;
+      score += 2 ** merged;
       prev = 0;
     } else {
       out[idx] = v;

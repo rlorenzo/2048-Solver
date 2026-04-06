@@ -5,14 +5,23 @@
 import { bestMove } from "./expectimax.js";
 import { fromBytes } from "./bitboard.js";
 
+const MAX_SEARCH_DEPTH = 8;
+
+function sanitizeDepth(depth) {
+  if (depth === "auto") return depth;
+  if (typeof depth !== "number" || !Number.isFinite(depth)) return 0;
+  return Math.max(0, Math.min(Math.trunc(depth), MAX_SEARCH_DEPTH));
+}
+
 self.addEventListener("message", (e) => {
   const id = e?.data?.id;
   try {
     const { board, depth } = e.data;
     const bytes = new Uint8Array(board);
     const bits = fromBytes(bytes);
+    const safeDepth = sanitizeDepth(depth);
     const t0 = performance.now();
-    const result = bestMove(bits, depth);
+    const result = bestMove(bits, safeDepth);
     const ms = performance.now() - t0;
     self.postMessage({ id, ...result, ms });
   } catch (err) {

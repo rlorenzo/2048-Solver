@@ -49,7 +49,8 @@ let state = null; // { seed, history }
 let aiRunning = false;
 let aiTimer = null;
 let aiWorker = null;
-let aiRequestId = 0;
+let nextRequestId = 0; // monotonic per-request ID for worker message routing
+let gameEpoch = 0; // incremented on newGame to invalidate in-flight AI
 
 // Speed slider -> moves per second. Slider values 0..6 map into SPEEDS.
 const SPEEDS = [1, 2, 4, 8, 16, 40, 200]; // per second
@@ -72,9 +73,9 @@ function updateSpeedLabel() {
 
 function newGame(seed, replayMoves = [], replayCursor = null) {
   if (aiRunning) stopAI();
-  // Invalidate any in-flight AI requests: increment the epoch and clear
-  // pending resolvers so stale worker responses are silently dropped.
-  aiRequestId++;
+  // Invalidate any in-flight AI requests: increment the game epoch and
+  // clear pending resolvers so stale worker responses are silently dropped.
+  gameEpoch++;
   pendingAI.clear();
   const actualSeed = seed >>> 0;
   const rng = mulberry32(actualSeed);
@@ -254,7 +255,7 @@ function ensureWorker() {
 function requestAIMove() {
   return new Promise((resolve) => {
     const worker = ensureWorker();
-    const id = ++aiRequestId;
+    const id = ++nextRequestId;
     const cur = state.history.current();
     const depthVal = depthSelect.value;
     const depth = depthVal === "auto" ? "auto" : parseInt(depthVal, 10);
@@ -270,11 +271,12 @@ async function aiStep() {
     stopAI();
     return;
   }
-  // Capture the current epoch so we can detect if newGame/stopAI
-  // invalidated this request while we were awaiting the worker.
-  const epoch = aiRequestId;
+  // Capture the game epoch so we can detect if newGame was called while
+  // we were awaiting the worker. (gameEpoch is separate from the per-
+  // request nextRequestId used for worker message routing.)
+  const epoch = gameEpoch;
   const { dir } = await requestAIMove();
-  if (aiRequestId !== epoch) return; // stale — game was reset
+  if (gameEpoch !== epoch) return; // stale — game was reset
   if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
     stopAI();
     return;
