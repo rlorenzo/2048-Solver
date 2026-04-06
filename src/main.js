@@ -45,7 +45,7 @@ const timelineRenderer = createTimelineRenderer(timelineEl, (nodeId) => {
   syncURL();
 });
 
-let state = null; // { seed, rng, history }
+let state = null; // { seed, history }
 let aiRunning = false;
 let aiTimer = null;
 let aiWorker = null;
@@ -95,23 +95,28 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
 }
 
 // Apply a move from the CURRENT cursor position. Generates the next spawn
-// using a fresh RNG seeded from the move path so spawns are deterministic
-// per branch.
+// using an RNG seeded from (seed, move-path) so spawns are deterministic per
+// branch. Computes the path hash incrementally to avoid O(n) movesFromRoot()
+// on every move.
 function applyMove(dir, opts = {}) {
   const cur = state.history.current();
   const result = boardMove(cur.board, dir);
   if (!result.moved) return false;
 
-  // Derive an RNG seeded from (seed, move-path) so each branch is reproducible
-  const movePath = state.history.movesFromRoot();
-  const pathSeed = hashPath(state.seed, [...movePath, dir]);
+  // Derive an RNG seeded from (seed, move-path) so each branch is reproducible.
+  // Accumulate the hash from the parent's stored hash rather than rewalking
+  // the entire path from root — keeps each applyMove call O(1).
+  const parentHash = cur.pathHash ?? state.seed;
+  const pathSeed = stepHash(parentHash, dir);
   const rng = mulberry32(pathSeed);
   const s = spawn(result.board, rng);
   const newBoard = s ? s.board : result.board;
   const spawnInfo = s ? s.spawn : null;
   const newScore = cur.score + result.score;
 
-  state.history.record(dir, newBoard, newScore, spawnInfo);
+  const childId = state.history.record(dir, newBoard, newScore, spawnInfo);
+  // Store the accumulated hash on the new node for future children.
+  state.history.get(childId).pathHash = pathSeed;
 
   if (!opts.silent) {
     renderAll();
@@ -120,15 +125,11 @@ function applyMove(dir, opts = {}) {
   return true;
 }
 
-// FNV-1a–like hash: deterministic mapping from (seed, move-path) to a uint32
-// spawn-RNG seed. This ensures each branch in the move tree gets its own
-// reproducible tile spawns, even after rollback + divergence.
-function hashPath(seed, moves) {
-  let h = seed >>> 0;
-  for (const m of moves) {
-    h = (h * 0x9e3779b1 + m) >>> 0; // Knuth multiplicative hash step
-    h ^= h >>> 16;
-  }
+// Single step of the FNV-1a–like hash used by applyMove. Kept separate from
+// the full-path version so applyMove can call it incrementally.
+function stepHash(h, dir) {
+  h = (h * 0x9e3779b1 + dir) >>> 0; // Knuth multiplicative hash step
+  h ^= h >>> 16;
   return h >>> 0;
 }
 
@@ -143,15 +144,16 @@ function renderAll() {
   const depth = state.history.depth();
   moveCountEl.textContent = String(depth);
 
-  // Find max depth reachable forward
-  let maxForward = depth;
+  // Depth along the preferred (first-child) branch forward from cursor.
+  // With branching, other branches may be longer; this shows the primary path.
+  let forwardDepth = depth;
   let node = cur;
   while (node.children.size > 0) {
     const next = state.history.get(node.children.values().next().value);
     node = next;
-    maxForward++;
+    forwardDepth++;
   }
-  timelinePositionEl.textContent = `${depth} / ${maxForward}`;
+  timelinePositionEl.textContent = `${depth} / ${forwardDepth}`;
 
   // Status
   if (!canMove(cur.board)) {
