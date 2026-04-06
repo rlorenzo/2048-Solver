@@ -260,7 +260,7 @@ function requestAIMove() {
     const depth = depthVal === "auto" ? "auto" : parseInt(depthVal, 10);
 
     pendingAI.set(id, resolve);
-    worker.postMessage({ id, board: cur.board.buffer.slice(0), depth });
+    worker.postMessage({ id, board: cur.board.slice(), depth });
   });
 }
 
@@ -309,10 +309,19 @@ function stopAI() {
 
 window.addEventListener("keydown", (e) => {
   if (!state) return;
-  // Don't intercept keys when focus is inside form controls (seed input,
-  // depth select, etc.) — let them handle their own keyboard interaction.
+  // Don't intercept keys when focus is inside interactive controls — let
+  // them handle their own keyboard interaction (e.g. Space on a button
+  // should click it, not toggle AI).
   const tag = e.target?.tagName;
-  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
+  if (
+    tag === "INPUT" ||
+    tag === "SELECT" ||
+    tag === "TEXTAREA" ||
+    tag === "BUTTON" ||
+    tag === "A" ||
+    e.target?.isContentEditable
+  )
+    return;
   const k = e.key;
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
