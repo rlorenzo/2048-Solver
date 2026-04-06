@@ -22,7 +22,7 @@ export function createBoardRenderer(container) {
       if (cell.className.split(" ").slice(0, 2).join(" ") !== newClass) {
         cell.className = newClass;
       }
-      cell.textContent = exp === 0 ? "" : String(1 << exp);
+      cell.textContent = exp === 0 ? "" : String(2 ** exp);
 
       // Animation classes
       cell.classList.remove("new", "merged");
@@ -43,7 +43,7 @@ export function createBoardRenderer(container) {
 }
 
 function tileClass(exp) {
-  const v = 1 << exp;
+  const v = 2 ** exp;
   if (v >= 4096) return "v-super";
   return `v-${v}`;
 }

@@ -23,13 +23,13 @@ export function boardEquals(a, b) {
 }
 
 export function valueAt(b, i) {
-  return b[i] === 0 ? 0 : 1 << b[i];
+  return b[i] === 0 ? 0 : 2 ** b[i];
 }
 
 export function maxTile(b) {
   let m = 0;
   for (let i = 0; i < CELLS; i++) if (b[i] > m) m = b[i];
-  return m === 0 ? 0 : 1 << m;
+  return m === 0 ? 0 : 2 ** m;
 }
 
 export function emptyCells(b) {
@@ -49,7 +49,7 @@ function slideRowLeft(row) {
     if (v === 0) continue;
     if (prev === v) {
       out[idx - 1] = v + 1;
-      score += 1 << (v + 1);
+      score += 2 ** (v + 1);
       prev = 0;
     } else {
       out[idx] = v;
