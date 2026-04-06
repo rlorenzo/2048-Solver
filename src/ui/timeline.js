@@ -7,6 +7,7 @@ const DIR_CLASSES = ["tick-up", "tick-right", "tick-down", "tick-left"];
 
 export function createTimelineRenderer(container, onTickClick) {
   container.addEventListener("click", (e) => {
+    if (!(e.target instanceof Element)) return;
     const target = e.target.closest("[data-node-id]");
     if (!target) return;
     const id = parseInt(target.dataset.nodeId, 10);

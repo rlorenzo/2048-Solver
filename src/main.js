@@ -54,14 +54,18 @@ let aiRequestId = 0;
 // Speed slider -> moves per second. Slider values 0..6 map into SPEEDS.
 const SPEEDS = [1, 2, 4, 8, 16, 40, 200]; // per second
 
-function speedMs() {
+function speedIndex() {
   const v = parseInt(speedInput.value, 10);
-  return 1000 / SPEEDS[v];
+  if (!Number.isFinite(v)) return 0;
+  return Math.max(0, Math.min(v, SPEEDS.length - 1));
+}
+
+function speedMs() {
+  return 1000 / SPEEDS[speedIndex()];
 }
 
 function updateSpeedLabel() {
-  const v = parseInt(speedInput.value, 10);
-  speedLabel.textContent = `${SPEEDS[v]}/s`;
+  speedLabel.textContent = `${SPEEDS[speedIndex()]}/s`;
 }
 
 // --- Game setup
@@ -292,6 +296,7 @@ function stopAI() {
 // --- Input handlers
 
 window.addEventListener("keydown", (e) => {
+  if (!state) return;
   const k = e.key;
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
