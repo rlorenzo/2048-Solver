@@ -206,12 +206,17 @@ function syncURL() {
   history.replaceState(null, "", hash);
 }
 
-// Get the move sequence along the FORWARD-most path (cursor + following
-// first children), so sharing a rewound state preserves the full played game.
+// Build the move sequence for the URL: root → cursor (the actual branch the
+// user is viewing), then continue following first-children forward from the
+// cursor so sharing a rewound state preserves the rest of the played game on
+// that branch.
 function fullMoveSequence() {
-  // Walk from root following first children all the way forward
-  const moves = [];
-  let node = state.history.get(state.history.root);
+  // Root → cursor: use the history path (guaranteed to follow the right branch)
+  const path = state.history.pathToCursor();
+  const moves = path.filter((n) => n.dir !== null).map((n) => n.dir);
+
+  // Cursor → end of preferred branch
+  let node = state.history.current();
   while (node.children.size > 0) {
     const childId = node.children.values().next().value;
     const child = state.history.get(childId);

@@ -235,12 +235,17 @@ export function canMove(board) {
 // Convert Uint8Array(16) board (log2 values at positions 0–15, row-major)
 // into Uint16Array(4) bitboard (4-bit cells packed left-to-right per row).
 // Position i maps to row i>>2, column i&3, nibble offset 4*(i&3).
+// Only supports exponents 0–15 (tiles up to 32768). Throws on overflow.
 export function fromBytes(bytes) {
   const out = new Uint16Array(4);
   for (let i = 0; i < 16; i++) {
+    const v = bytes[i];
+    if (v > 0xf) {
+      throw new RangeError(`Bitboard cell exponent must be 0–15; got ${v} at position ${i}`);
+    }
     const row = i >> 2; // which row (0–3)
     const col = i & 3; // which column (0–3)
-    out[row] |= (bytes[i] & 0xf) << (4 * col); // pack into 4-bit nibble
+    out[row] |= v << (4 * col); // pack into 4-bit nibble
   }
   return out;
 }
