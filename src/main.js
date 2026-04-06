@@ -72,9 +72,10 @@ function updateSpeedLabel() {
 
 function newGame(seed, replayMoves = [], replayCursor = null) {
   if (aiRunning) stopAI();
-  // Invalidate any in-flight AI requests — their onMessage callbacks check
-  // `e.data.id !== id` and will silently drop stale results.
+  // Invalidate any in-flight AI requests: increment the epoch and clear
+  // pending resolvers so stale worker responses are silently dropped.
   aiRequestId++;
+  pendingAI.clear();
   const actualSeed = seed >>> 0;
   const rng = mulberry32(actualSeed);
   const { board } = initialBoard(rng);
@@ -269,7 +270,11 @@ async function aiStep() {
     stopAI();
     return;
   }
+  // Capture the current epoch so we can detect if newGame/stopAI
+  // invalidated this request while we were awaiting the worker.
+  const epoch = aiRequestId;
   const { dir } = await requestAIMove();
+  if (aiRequestId !== epoch) return; // stale — game was reset
   if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
     stopAI();
     return;
