@@ -39,13 +39,13 @@ export function decodeMoves(str) {
   if (!BASE36_RE.test(lenStr)) return [];
   const length = parseInt(lenStr, 36);
   if (!Number.isFinite(length) || length < 0 || length > MAX_MOVES) return [];
-  // Reject oversized base64url payloads BEFORE decoding — otherwise a URL
-  // like `m=<megabytes of b64>.<tiny len>` still forces fromB64 to walk the
-  // whole string.
+  // Reject malformed base64url payloads BEFORE decoding. Require the segment
+  // length to match exactly — too short means truncated data, too long means
+  // junk appended. Also enforce the absolute hard cap.
   const byteLength = Math.ceil(length / 4);
   const rem = byteLength % 3;
-  const maxB64Length = Math.floor(byteLength / 3) * 4 + (rem === 0 ? 0 : rem + 1);
-  if (b64.length > maxB64Length || b64.length > MAX_B64_LENGTH) return [];
+  const expectedB64Length = Math.floor(byteLength / 3) * 4 + (rem === 0 ? 0 : rem + 1);
+  if (b64.length !== expectedB64Length || b64.length > MAX_B64_LENGTH) return [];
   const bytes = fromB64(b64);
   if (bytes.length < byteLength) return [];
   const moves = Array.from({ length });

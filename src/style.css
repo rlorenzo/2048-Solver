@@ -331,6 +331,18 @@ h1 {
   cursor: pointer;
   position: relative;
   transition: transform 80ms ease;
+  /* Reset button defaults so ticks look like color blocks */
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  appearance: none;
+}
+
+.tick:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+  z-index: 2;
 }
 
 .tick:hover {

@@ -90,6 +90,7 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
     }
   }
 
+  boardRenderer.reset();
   renderAll();
   syncURL();
 }

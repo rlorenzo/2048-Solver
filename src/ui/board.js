@@ -35,7 +35,11 @@ export function createBoardRenderer(container) {
     prevExps = new Uint8Array(board);
   }
 
-  return { render };
+  function reset() {
+    prevExps = new Uint8Array(CELLS);
+  }
+
+  return { render, reset };
 }
 
 function tileClass(exp) {

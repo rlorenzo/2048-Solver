@@ -1,6 +1,7 @@
 // Timeline renderer: one tick per move along the path from root to cursor.
 // Highlights direction-changes (vs previous move) and branch points (nodes
 // whose parent has multiple children).
+// Ticks are rendered as <button> elements for keyboard/screen-reader access.
 
 const DIR_CLASSES = ["tick-up", "tick-right", "tick-down", "tick-left"];
 
@@ -19,14 +20,15 @@ export function createTimelineRenderer(container, onTickClick) {
     let prevDir = null;
     for (let i = 0; i < path.length; i++) {
       const node = path[i];
-      const tick = document.createElement("div");
+      const tick = document.createElement("button");
+      tick.type = "button";
       tick.dataset.nodeId = String(node.id);
 
       if (node.dir === null) {
         // Root: just a neutral marker
         tick.className = "tick";
         tick.style.background = "var(--accent)";
-        tick.title = "Start";
+        tick.setAttribute("aria-label", "Start");
       } else {
         const isTurn = prevDir !== null && node.dir !== prevDir;
         const parent = history.get(node.parent);
@@ -34,10 +36,13 @@ export function createTimelineRenderer(container, onTickClick) {
         tick.className = `tick ${DIR_CLASSES[node.dir]}`;
         if (isTurn) tick.classList.add("turn");
         if (isBranch) tick.classList.add("branch");
-        tick.title = describeTick(i, node.dir, isTurn, isBranch);
+        tick.setAttribute("aria-label", describeTick(i, node.dir, isTurn, isBranch));
         prevDir = node.dir;
       }
-      if (node.id === history.cursor) tick.classList.add("current");
+      if (node.id === history.cursor) {
+        tick.classList.add("current");
+        tick.setAttribute("aria-current", "step");
+      }
       container.appendChild(tick);
     }
 
