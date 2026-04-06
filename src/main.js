@@ -232,9 +232,21 @@ function fullMoveSequence() {
 
 // --- AI
 
+// Pending AI request resolvers, keyed by request id. A single shared
+// worker.onmessage routes responses by id and removes the entry, so
+// invalidated requests (from newGame incrementing aiRequestId) don't
+// leave orphaned listeners.
+const pendingAI = new Map();
+
 function ensureWorker() {
   if (aiWorker) return aiWorker;
   aiWorker = new Worker(new URL("./ai/worker.js", import.meta.url), { type: "module" });
+  aiWorker.addEventListener("message", (e) => {
+    const resolve = pendingAI.get(e.data.id);
+    if (!resolve) return; // stale / invalidated request
+    pendingAI.delete(e.data.id);
+    resolve(e.data);
+  });
   return aiWorker;
 }
 
@@ -246,12 +258,7 @@ function requestAIMove() {
     const depthVal = depthSelect.value;
     const depth = depthVal === "auto" ? "auto" : parseInt(depthVal, 10);
 
-    const onMessage = (e) => {
-      if (e.data.id !== id) return;
-      worker.removeEventListener("message", onMessage);
-      resolve(e.data);
-    };
-    worker.addEventListener("message", onMessage);
+    pendingAI.set(id, resolve);
     worker.postMessage({ id, board: cur.board.buffer.slice(0), depth });
   });
 }
@@ -297,6 +304,10 @@ function stopAI() {
 
 window.addEventListener("keydown", (e) => {
   if (!state) return;
+  // Don't intercept keys when focus is inside form controls (seed input,
+  // depth select, etc.) — let them handle their own keyboard interaction.
+  const tag = e.target?.tagName;
+  if (tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA") return;
   const k = e.key;
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
