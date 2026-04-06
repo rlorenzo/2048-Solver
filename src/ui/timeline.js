@@ -47,30 +47,24 @@ export function createTimelineRenderer(container, onTickClick) {
       container.removeChild(tickElements.pop());
     }
 
+    // Update retained ticks so derived styling/ARIA stays in sync even when
+    // node ids are unchanged but branch/turn state changes.
+    let prevDir = null;
+    for (let i = 0; i < commonLen; i++) {
+      configureTick(tickElements[i], path[i], i, prevDir, history);
+      prevDir = path[i].dir;
+    }
+
     // Create/update ticks from commonLen onward.
-    let prevDir = commonLen > 0 ? path[commonLen - 1].dir : null;
     for (let i = commonLen; i < path.length; i++) {
       const node = path[i];
       const tick = document.createElement("button");
       tick.type = "button";
       tick.dataset.nodeId = String(node.id);
-
-      if (node.dir === null) {
-        tick.className = "tick";
-        tick.style.background = "var(--accent)";
-        tick.setAttribute("aria-label", "Start");
-      } else {
-        const isTurn = prevDir !== null && node.dir !== prevDir;
-        const parent = history.get(node.parent);
-        const isBranch = parent.children.size > 1;
-        tick.className = `tick ${DIR_CLASSES[node.dir]}`;
-        if (isTurn) tick.classList.add("turn");
-        if (isBranch) tick.classList.add("branch");
-        tick.setAttribute("aria-label", describeTick(i, node.dir, isTurn, isBranch));
-        prevDir = node.dir;
-      }
+      configureTick(tick, node, i, prevDir, history);
       container.appendChild(tick);
       tickElements.push(tick);
+      prevDir = node.dir;
     }
 
     // Update the "current" highlight — touch only the old and new tick by
@@ -110,6 +104,26 @@ export function createTimelineRenderer(container, onTickClick) {
   }
 
   return { render, reset };
+}
+
+function configureTick(tick, node, index, prevDir, history) {
+  tick.dataset.nodeId = String(node.id);
+  tick.removeAttribute("aria-current");
+  if (node.dir === null) {
+    tick.className = "tick";
+    tick.style.background = "var(--accent)";
+    tick.setAttribute("aria-label", "Start");
+    return;
+  }
+
+  const isTurn = prevDir !== null && node.dir !== prevDir;
+  const parent = history.get(node.parent);
+  const isBranch = parent.children.size > 1;
+  tick.className = `tick ${DIR_CLASSES[node.dir]}`;
+  tick.style.background = "";
+  if (isTurn) tick.classList.add("turn");
+  if (isBranch) tick.classList.add("branch");
+  tick.setAttribute("aria-label", describeTick(index, node.dir, isTurn, isBranch));
 }
 
 function describeTick(index, dir, isTurn, isBranch) {

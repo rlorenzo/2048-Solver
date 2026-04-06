@@ -87,7 +87,9 @@ function parseSeedInput() {
   const raw = seedInput.value.trim();
   if (raw === "") return null;
   if (!/^\d+$/.test(raw)) return null;
-  return parseInt(raw, 10) >>> 0;
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed > 0xffffffff) return null;
+  return parsed >>> 0;
 }
 
 function randomizeSeedInput() {
@@ -156,10 +158,7 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
   // resolve pending promises with a sentinel so awaiting code completes
   // (the epoch check in aiStep will discard the result).
   gameEpoch++;
-  for (const resolve of pendingAI.values()) {
-    resolve({ dir: -1, scores: [0, 0, 0, 0], depth: 0 });
-  }
-  pendingAI.clear();
+  invalidatePendingAIRequests();
   const actualSeed = seed >>> 0;
   const rng = mulberry32(actualSeed);
   const { board } = initialBoard(rng);
@@ -370,9 +369,16 @@ function fullMoveSequence() {
 
 // Pending AI request resolvers, keyed by request id. The shared worker
 // message handler routes responses by id and removes the matching entry.
-// On newGame, pending entries are resolved with a sentinel so the awaiting
+// On reset/stop, pending entries are resolved with a sentinel so awaiting
 // code in aiStep completes and the epoch check discards the stale result.
 const pendingAI = new Map();
+
+function invalidatePendingAIRequests() {
+  for (const resolve of pendingAI.values()) {
+    resolve({ dir: -1, scores: [0, 0, 0, 0], depth: 0 });
+  }
+  pendingAI.clear();
+}
 
 function ensureWorker() {
   if (aiWorker) return aiWorker;
@@ -446,6 +452,7 @@ function stopAI() {
   // End the current AI epoch so any in-flight worker response from a prior
   // run is ignored if the user restarts AI before it arrives.
   gameEpoch++;
+  invalidatePendingAIRequests();
   aiRunning = false;
   updatePlayButtonLabel();
   if (aiTimer) {
