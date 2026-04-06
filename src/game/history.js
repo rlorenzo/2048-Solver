@@ -10,6 +10,7 @@
 //   board: Uint8Array
 //   score: total score at this node
 //   children: Map<dir, id>
+//   preferredChild: id | null  (last-visited child for deterministic redo)
 
 import { cloneBoard } from "./board.js";
 
@@ -32,6 +33,7 @@ export class History {
       board,
       score,
       children: new Map(),
+      preferredChild: null,
     });
     return id;
   }
@@ -60,10 +62,12 @@ export class History {
       // derived from seed + directions-from-root), so the same (parent, dir)
       // always produces the same spawn. Reuse the existing child rather than
       // replacing — replacing would orphan the entire subtree under it.
+      cur.preferredChild = existingId;
       this.cursor = existingId;
       return existingId;
     }
     const id = this._add(cur.id, dir, spawn, newBoard, score);
+    cur.preferredChild = id;
     this.cursor = id;
     return id;
   }
@@ -72,22 +76,35 @@ export class History {
   stepBack() {
     const cur = this.current();
     if (cur.parent === null) return false;
-    this.cursor = cur.parent;
+    const parent = this.nodes.get(cur.parent);
+    parent.preferredChild = cur.id;
+    this.cursor = parent.id;
     return true;
   }
 
-  // Step forward along the first child (preferred branch).
+  // Step forward along the preferred child (falling back to first child).
   stepForward() {
     const cur = this.current();
     if (cur.children.size === 0) return false;
-    const firstChild = cur.children.values().next().value;
-    this.cursor = firstChild;
+    const preferred = cur.preferredChild !== null ? this.nodes.get(cur.preferredChild) : null;
+    const nextChild =
+      preferred?.parent === cur.id ? cur.preferredChild : cur.children.values().next().value;
+    cur.preferredChild = nextChild;
+    this.cursor = nextChild;
     return true;
   }
 
   // Jump the cursor to any node id
   jumpTo(id) {
     if (!this.nodes.has(id)) return false;
+    let childId = id;
+    let node = this.nodes.get(id);
+    while (node.parent !== null) {
+      const parent = this.nodes.get(node.parent);
+      parent.preferredChild = childId;
+      childId = parent.id;
+      node = parent;
+    }
     this.cursor = id;
     return true;
   }

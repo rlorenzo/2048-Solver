@@ -91,12 +91,14 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
 
   // Replay moves if provided
   if (replayMoves.length > 0) {
+    let appliedMoves = 0;
     for (const dir of replayMoves) {
       if (!applyMove(dir, { silent: true })) break;
+      appliedMoves++;
     }
-    if (replayCursor !== null && replayCursor < replayMoves.length) {
+    if (replayCursor !== null && replayCursor < appliedMoves) {
       // Walk cursor back
-      const steps = replayMoves.length - replayCursor;
+      const steps = appliedMoves - replayCursor;
       for (let i = 0; i < steps; i++) state.history.stepBack();
     }
   }

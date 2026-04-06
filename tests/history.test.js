@@ -30,6 +30,30 @@ describe("History", () => {
     expect(h.depth()).toBe(1);
   });
 
+  it("stepForward replays the last-visited branch", () => {
+    const h = new History(makeBoard(1));
+    h.record(0, makeBoard(2), 4, null);
+    const forkId = h.current().id;
+
+    h.record(1, makeBoard(3), 8, null);
+    const rightId = h.current().id;
+
+    h.jumpTo(forkId);
+    h.record(2, makeBoard(4), 12, null);
+    const downId = h.current().id;
+
+    h.stepBack();
+    expect(h.current().id).toBe(forkId);
+    h.stepForward();
+    expect(h.current().id).toBe(downId);
+
+    h.stepBack();
+    h.jumpTo(rightId);
+    h.stepBack();
+    h.stepForward();
+    expect(h.current().id).toBe(rightId);
+  });
+
   it("creates new branch when cursor is rewound and a different dir is played", () => {
     const h = new History(makeBoard(1));
     h.record(0, makeBoard(2), 4, null); // branch A, move UP
