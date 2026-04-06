@@ -330,6 +330,46 @@ window.addEventListener("keydown", (e) => {
   }
 });
 
+// --- Touch / swipe input (mobile)
+// Track touch start position on the board; on touchend compute the dominant
+// axis and apply the corresponding move if the swipe exceeds a threshold.
+const SWIPE_THRESHOLD = 30; // minimum px to count as a swipe
+let touchStartX = 0;
+let touchStartY = 0;
+
+boardEl.addEventListener(
+  "touchstart",
+  (e) => {
+    if (!state || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+  },
+  { passive: true },
+);
+
+boardEl.addEventListener(
+  "touchend",
+  (e) => {
+    if (!state || aiRunning) return;
+    if (e.changedTouches.length !== 1) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+    const absDx = Math.abs(dx);
+    const absDy = Math.abs(dy);
+    if (Math.max(absDx, absDy) < SWIPE_THRESHOLD) return;
+    let dir;
+    if (absDx > absDy) {
+      dir = dx > 0 ? DIR.RIGHT : DIR.LEFT;
+    } else {
+      dir = dy > 0 ? DIR.DOWN : DIR.UP;
+    }
+    applyMove(dir);
+  },
+  { passive: true },
+);
+
 btnNew.addEventListener("click", () => {
   const raw = seedInput.value.trim();
   let seed;

@@ -7,8 +7,8 @@ branching rollback, and shareable seed-based replays.
 
 ## Features
 
-- **Play** with arrow keys. Seeded RNG (`mulberry32`) means every game is
-  reproducible.
+- **Play** with arrow keys or swipe on mobile. Seeded RNG (`mulberry32`)
+  means every game is reproducible.
 - **Watch the AI play** at configurable speed (1–200 moves/sec) and depth.
 - **Scrub the timeline** forward and backward through any game. Ticks are
   color-coded by direction; a highlighted outline marks direction changes
@@ -40,9 +40,10 @@ vp preview          # serve built output
 
 ## Controls
 
-| Key                   | Action                      |
+| Input                 | Action                      |
 | --------------------- | --------------------------- |
 | `←` `↑` `→` `↓`       | Play a move                 |
+| Swipe on board        | Play a move (mobile)        |
 | `Shift + ←` / `→`     | Scrub timeline back/forward |
 | `Space`               | Start/pause AI              |
 | `N`                   | New game with random seed   |
