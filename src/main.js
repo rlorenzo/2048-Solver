@@ -101,6 +101,7 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
   }
 
   boardRenderer.reset();
+  timelineRenderer.reset();
   renderAll();
   syncURL();
 }
@@ -128,6 +129,7 @@ function applyMove(dir, opts = {}) {
   const childId = state.history.record(dir, newBoard, newScore, spawnInfo);
   // Store the accumulated hash on the new node for future children.
   state.history.get(childId).pathHash = pathSeed;
+  invalidateForwardDepthCache();
 
   if (!opts.silent) {
     renderAll();
@@ -144,6 +146,29 @@ function stepHash(h, dir) {
   return h >>> 0;
 }
 
+// --- Cached forward-depth: walk the preferred (first-child) branch from
+// cursor to leaf. Cached on the cursor node id; invalidated when a new
+// child is added (applyMove) or cursor moves (stepBack/forward/jumpTo).
+let _fwdDepthCache = { cursorId: -1, value: 0 };
+
+function cachedForwardDepth() {
+  const cursorId = state.history.cursor;
+  if (_fwdDepthCache.cursorId === cursorId) return _fwdDepthCache.value;
+  const depth = state.history.depth();
+  let fwd = depth;
+  let node = state.history.current();
+  while (node.children.size > 0) {
+    node = state.history.get(node.children.values().next().value);
+    fwd++;
+  }
+  _fwdDepthCache = { cursorId, value: fwd };
+  return fwd;
+}
+
+function invalidateForwardDepthCache() {
+  _fwdDepthCache.cursorId = -1;
+}
+
 // --- Rendering
 
 function renderAll() {
@@ -154,17 +179,7 @@ function renderAll() {
 
   const depth = state.history.depth();
   moveCountEl.textContent = String(depth);
-
-  // Depth along the preferred (first-child) branch forward from cursor.
-  // With branching, other branches may be longer; this shows the primary path.
-  let forwardDepth = depth;
-  let node = cur;
-  while (node.children.size > 0) {
-    const next = state.history.get(node.children.values().next().value);
-    node = next;
-    forwardDepth++;
-  }
-  timelinePositionEl.textContent = `${depth} / ${forwardDepth}`;
+  timelinePositionEl.textContent = `${depth} / ${cachedForwardDepth()}`;
 
   // Status
   if (!canMove(cur.board)) {
@@ -204,8 +219,29 @@ function renderAll() {
 }
 
 // --- URL sync
+// During AI autoplay, syncURL is called on every move which triggers
+// fullMoveSequence (O(n) path walk) + replaceState. We debounce via
+// requestAnimationFrame so at most one URL update happens per frame.
+// Manual actions (human moves, scrub, share) call syncURLNow() directly.
+
+let _syncURLPending = false;
 
 function syncURL() {
+  if (aiRunning) {
+    // Batch during autoplay — at most once per animation frame.
+    if (!_syncURLPending) {
+      _syncURLPending = true;
+      requestAnimationFrame(() => {
+        _syncURLPending = false;
+        syncURLNow();
+      });
+    }
+  } else {
+    syncURLNow();
+  }
+}
+
+function syncURLNow() {
   const movesAll = fullMoveSequence();
   const cursorPos = state.history.depth();
   const hash = encodeState({
@@ -308,6 +344,11 @@ function stopAI() {
   if (aiTimer) {
     clearTimeout(aiTimer);
     aiTimer = null;
+  }
+  // Flush any debounced URL update so the final AI state is captured.
+  if (_syncURLPending) {
+    _syncURLPending = false;
+    syncURLNow();
   }
 }
 
