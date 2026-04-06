@@ -9,6 +9,7 @@
 //   spawn: { pos, exp } | null  (tile spawned AFTER the move)
 //   board: Uint8Array
 //   score: total score at this node
+//   depth: number  (distance from root)
 //   children: Map<dir, id>
 //   preferredChild: id | null  (last-visited child for deterministic redo)
 
@@ -24,7 +25,8 @@ export class History {
 
   _add(parent, dir, spawn, board, score) {
     const id = this.nextId++;
-    this.nodes.get(parent)?.children.set(dir, id);
+    const parentNode = this.nodes.get(parent);
+    parentNode?.children.set(dir, id);
     this.nodes.set(id, {
       id,
       parent,
@@ -32,6 +34,7 @@ export class History {
       spawn,
       board,
       score,
+      depth: parentNode ? parentNode.depth + 1 : 0,
       children: new Map(),
       preferredChild: null,
     });
@@ -152,7 +155,7 @@ export class History {
   }
 
   depth() {
-    return this.pathToCursor().length - 1;
+    return this.current().depth;
   }
 
   // Return sibling alternatives at the current cursor's parent

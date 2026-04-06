@@ -374,34 +374,63 @@ function fullMoveSequence() {
 const pendingAI = new Map();
 
 function invalidatePendingAIRequests() {
-  for (const resolve of pendingAI.values()) {
-    resolve({ dir: -1, scores: [0, 0, 0, 0], depth: 0 });
+  for (const pending of pendingAI.values()) {
+    pending.resolve({ dir: -1, scores: [0, 0, 0, 0], depth: 0 });
   }
   pendingAI.clear();
+}
+
+function failPendingAIRequests(error) {
+  for (const pending of pendingAI.values()) {
+    pending.reject(error);
+  }
+  pendingAI.clear();
+}
+
+function handleAIWorkerFailure(message) {
+  failPendingAIRequests(new Error(message));
+  if (aiWorker) {
+    aiWorker.terminate();
+    aiWorker = null;
+  }
+  setStatusMessage(message, "lose");
+  stopAI();
 }
 
 function ensureWorker() {
   if (aiWorker) return aiWorker;
   aiWorker = new Worker(new URL("./ai/worker.js", import.meta.url), { type: "module" });
   aiWorker.addEventListener("message", (e) => {
-    const resolve = pendingAI.get(e.data.id);
-    if (!resolve) return; // stale / invalidated request
+    const pending = pendingAI.get(e.data.id);
+    if (!pending) return; // stale / invalidated request
     pendingAI.delete(e.data.id);
-    resolve(e.data);
+    pending.resolve(e.data);
+  });
+  aiWorker.addEventListener("error", (e) => {
+    const detail = e?.message ? `: ${e.message}` : ".";
+    handleAIWorkerFailure(`AI worker failed${detail}`);
+  });
+  aiWorker.addEventListener("messageerror", () => {
+    handleAIWorkerFailure("AI worker sent an unreadable response.");
   });
   return aiWorker;
 }
 
 function requestAIMove() {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const worker = ensureWorker();
     const id = ++nextRequestId;
     const cur = state.history.current();
     const depthVal = depthSelect.value;
     const depth = depthVal === "auto" ? "auto" : parseInt(depthVal, 10);
 
-    pendingAI.set(id, resolve);
-    worker.postMessage({ id, board: cur.board.slice(), depth });
+    pendingAI.set(id, { resolve, reject });
+    try {
+      worker.postMessage({ id, board: cur.board.slice(), depth });
+    } catch (error) {
+      pendingAI.delete(id);
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
   });
 }
 
@@ -424,7 +453,14 @@ async function aiStep() {
   // we were awaiting the worker. (gameEpoch is separate from the per-
   // request nextRequestId used for worker message routing.)
   const epoch = gameEpoch;
-  const { dir } = await requestAIMove();
+  let dir;
+  try {
+    ({ dir } = await requestAIMove());
+  } catch (error) {
+    stopAI();
+    setStatusMessage(error instanceof Error ? error.message : String(error), "lose");
+    return;
+  }
   if (gameEpoch !== epoch) return; // stale — game was reset
   if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
     stopAI();

@@ -82,6 +82,10 @@ export function createTimelineRenderer(container, onTickClick) {
       }
       prevCursorIdx = newIdx;
     }
+    if (prevCursorIdx >= 0 && prevCursorIdx < tickElements.length) {
+      tickElements[prevCursorIdx].classList.add("current");
+      tickElements[prevCursorIdx].setAttribute("aria-current", "step");
+    }
 
     // Cache state for next render.
     prevPathIds = path.map((n) => n.id);
