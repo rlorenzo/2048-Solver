@@ -22,11 +22,13 @@ const moveCountEl = document.getElementById("move-count");
 const statusEl = document.getElementById("status");
 const seedInput = document.getElementById("seed");
 const speedInput = document.getElementById("speed");
+const speedCaption = document.getElementById("speed-caption");
 const speedLabel = document.getElementById("speed-label");
 const depthSelect = document.getElementById("depth");
 const timelineEl = document.getElementById("timeline");
 const timelinePositionEl = document.getElementById("timeline-position");
 const branchLabelEl = document.getElementById("branch-label");
+const winOverlayEl = document.getElementById("win-overlay");
 
 const btnNew = document.getElementById("btn-new");
 const btnUndo = document.getElementById("btn-undo");
@@ -36,6 +38,11 @@ const btnStop = document.getElementById("btn-stop");
 const btnShare = document.getElementById("btn-share");
 const btnBranchPrev = document.getElementById("btn-branch-prev");
 const btnBranchNext = document.getElementById("btn-branch-next");
+const btnSeedReplay = document.getElementById("btn-seed-replay");
+const btnSeedRandom = document.getElementById("btn-seed-random");
+const btnWinContinue = document.getElementById("btn-win-continue");
+const btnWinNew = document.getElementById("btn-win-new");
+const btnWinShare = document.getElementById("btn-win-share");
 
 // --- Game state
 const boardRenderer = createBoardRenderer(boardEl);
@@ -51,6 +58,8 @@ let aiTimer = null;
 let aiWorker = null;
 let nextRequestId = 0; // monotonic per-request ID for worker message routing
 let gameEpoch = 0; // incremented on newGame to invalidate in-flight AI
+let winAcknowledged = false;
+let replayMode = false;
 
 // Speed slider -> moves per second. Slider values 0..6 map into SPEEDS.
 const SPEEDS = [1, 2, 4, 8, 16, 40, 200]; // per second
@@ -67,6 +76,76 @@ function speedMs() {
 
 function updateSpeedLabel() {
   speedLabel.textContent = `${SPEEDS[speedIndex()]}/s`;
+}
+
+function setStatusMessage(text, kind = "") {
+  statusEl.textContent = text;
+  statusEl.className = kind ? `status ${kind}` : "status";
+}
+
+function parseSeedInput() {
+  const raw = seedInput.value.trim();
+  if (raw === "") return null;
+  if (!/^\d+$/.test(raw)) return null;
+  return parseInt(raw, 10) >>> 0;
+}
+
+function randomizeSeedInput() {
+  const seed = randomSeed();
+  seedInput.value = String(seed);
+  return seed;
+}
+
+function showWinOverlay() {
+  winOverlayEl.classList.remove("hidden");
+  btnWinNew.focus();
+}
+
+function hideWinOverlay() {
+  winOverlayEl.classList.add("hidden");
+}
+
+function isWinOverlayOpen() {
+  return !winOverlayEl.classList.contains("hidden");
+}
+
+function setShareButtonFeedback(label) {
+  btnShare.textContent = label;
+  btnWinShare.textContent = label;
+}
+
+function resetShareButtonFeedback() {
+  btnShare.textContent = "Copy Share Link";
+  btnWinShare.textContent = "Share Game";
+}
+
+function updatePlayButtonLabel() {
+  btnPlayPause.textContent = aiRunning ? "Pause" : replayMode ? "Play" : "AI Play";
+}
+
+function updateSpeedCaption() {
+  speedCaption.textContent = replayMode ? "Playback Speed:" : "AI Speed:";
+}
+
+function buildShareURL() {
+  const moves = fullMoveSequence();
+  const hash = encodeState({
+    seed: state.seed,
+    moves,
+    cursor: moves.length > 0 ? 0 : state.history.depth(),
+    replay: moves.length > 0,
+  });
+  return `${window.location.origin}${window.location.pathname}${hash}`;
+}
+
+async function copyShareLink() {
+  const url = buildShareURL();
+  try {
+    await navigator.clipboard.writeText(url);
+    setShareButtonFeedback("Copied!");
+  } catch {
+    prompt("Copy this link:", url);
+  }
 }
 
 // --- Game setup
@@ -86,6 +165,12 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
   const { board } = initialBoard(rng);
   const history = new History(board);
   state = { seed: actualSeed, history };
+  winAcknowledged = false;
+  replayMode = false;
+  hideWinOverlay();
+  resetShareButtonFeedback();
+  updatePlayButtonLabel();
+  updateSpeedCaption();
   invalidateForwardDepthCache();
   seedInput.value = String(actualSeed);
 
@@ -178,7 +263,8 @@ function renderAll() {
   const cur = state.history.current();
   boardRenderer.render(cur.board, { spawnPos: cur.spawn?.pos });
   scoreEl.textContent = String(cur.score);
-  bestTileEl.textContent = String(maxTile(cur.board));
+  const bestTile = maxTile(cur.board);
+  bestTileEl.textContent = String(bestTile);
 
   const depth = state.history.depth();
   moveCountEl.textContent = String(depth);
@@ -186,20 +272,22 @@ function renderAll() {
 
   // Status
   if (!canMove(cur.board)) {
-    const mt = maxTile(cur.board);
-    if (mt >= 2048) {
-      statusEl.textContent = `Game won! Best tile: ${mt}`;
-      statusEl.className = "status win";
+    if (bestTile >= 2048) {
+      setStatusMessage(`Game won! Best tile: ${bestTile}`, "win");
     } else {
-      statusEl.textContent = "Game over. Rewind and try a different path!";
-      statusEl.className = "status lose";
+      setStatusMessage("Game over. Rewind and try a different path!", "lose");
     }
-  } else if (maxTile(cur.board) >= 2048) {
-    statusEl.textContent = `2048 reached! Keep going…`;
-    statusEl.className = "status win";
+  } else if (bestTile >= 2048) {
+    setStatusMessage("2048 reached! Keep going…", "win");
   } else {
-    statusEl.textContent = "";
-    statusEl.className = "status";
+    setStatusMessage("");
+  }
+
+  if (bestTile >= 2048 && !winAcknowledged) {
+    if (aiRunning) stopAI();
+    showWinOverlay();
+  } else {
+    hideWinOverlay();
   }
 
   // Branch label
@@ -329,9 +417,10 @@ async function aiStep() {
 }
 
 function startAI() {
+  if (isWinOverlayOpen()) return;
   if (aiRunning) return;
   aiRunning = true;
-  btnPlayPause.textContent = "Pause";
+  updatePlayButtonLabel();
   const loop = async () => {
     if (!aiRunning) return;
     await aiStep();
@@ -342,8 +431,11 @@ function startAI() {
 }
 
 function stopAI() {
+  // End the current AI epoch so any in-flight worker response from a prior
+  // run is ignored if the user restarts AI before it arrives.
+  gameEpoch++;
   aiRunning = false;
-  btnPlayPause.textContent = "AI Play";
+  updatePlayButtonLabel();
   if (aiTimer) {
     clearTimeout(aiTimer);
     aiTimer = null;
@@ -373,6 +465,13 @@ window.addEventListener("keydown", (e) => {
   )
     return;
   const k = e.key;
+  if (isWinOverlayOpen()) {
+    if (k === "Escape") {
+      winAcknowledged = true;
+      hideWinOverlay();
+    }
+    return;
+  }
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
     if (aiRunning) stopAI();
@@ -427,7 +526,7 @@ boardEl.addEventListener(
 boardEl.addEventListener(
   "touchend",
   (e) => {
-    if (!state || aiRunning) return;
+    if (!state || aiRunning || isWinOverlayOpen()) return;
     if (e.changedTouches.length !== 1) return;
     const t = e.changedTouches[0];
     const dx = t.clientX - touchStartX;
@@ -447,18 +546,29 @@ boardEl.addEventListener(
 );
 
 btnNew.addEventListener("click", () => {
-  const raw = seedInput.value.trim();
-  let seed;
-  if (raw === "") {
-    seed = randomSeed();
-  } else if (/^\d+$/.test(raw)) {
-    // Only accept fully numeric decimal seeds so "123abc" is rejected
-    // instead of being partially parsed by parseInt.
-    seed = parseInt(raw, 10) >>> 0;
-  } else {
-    seed = randomSeed();
+  newGame(randomizeSeedInput());
+});
+
+btnSeedRandom.addEventListener("click", () => {
+  randomizeSeedInput();
+  setStatusMessage("Random seed ready. Start a new game or replay it.");
+});
+
+btnSeedReplay.addEventListener("click", () => {
+  const seed = parseSeedInput();
+  if (seed === null) {
+    setStatusMessage("Enter digits only to replay a specific seed.", "lose");
+    seedInput.focus();
+    seedInput.select();
+    return;
   }
   newGame(seed);
+});
+
+seedInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  btnSeedReplay.click();
 });
 
 btnUndo.addEventListener("click", () => {
@@ -479,18 +589,14 @@ btnPlayPause.addEventListener("click", () => {
 });
 btnStop.addEventListener("click", stopAI);
 
-btnShare.addEventListener("click", async () => {
-  const url = window.location.href;
-  try {
-    await navigator.clipboard.writeText(url);
-    btnShare.textContent = "Copied!";
-    setTimeout(() => {
-      btnShare.textContent = "Copy Share Link";
-    }, 1200);
-  } catch {
-    // Fallback: select-and-prompt
-    prompt("Copy this link:", url);
-  }
+btnShare.addEventListener("click", copyShareLink);
+btnWinShare.addEventListener("click", copyShareLink);
+btnWinContinue.addEventListener("click", () => {
+  winAcknowledged = true;
+  hideWinOverlay();
+});
+btnWinNew.addEventListener("click", () => {
+  newGame(randomizeSeedInput());
 });
 
 btnBranchPrev.addEventListener("click", () => cycleBranch(-1));
@@ -515,6 +621,14 @@ function init() {
   const hashState = decodeState(window.location.hash);
   if (hashState) {
     newGame(hashState.seed, hashState.moves, hashState.cursor);
+    if (hashState.replay && hashState.moves.length > 0) {
+      replayMode = true;
+      updatePlayButtonLabel();
+      updateSpeedCaption();
+      winAcknowledged = true;
+      hideWinOverlay();
+      setStatusMessage("Watching a shared replay. Press Play or step through the game.");
+    }
   } else {
     newGame(randomSeed());
   }

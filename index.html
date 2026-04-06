@@ -26,7 +26,39 @@
       </header>
 
       <main>
-        <div id="board" class="board" aria-label="2048 board"></div>
+        <div class="board-shell">
+          <div id="board" class="board" aria-label="2048 board"></div>
+          <div
+            id="win-overlay"
+            class="win-overlay hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="win-title"
+            aria-describedby="win-message"
+          >
+            <div class="win-fireworks" aria-hidden="true">
+              <span class="firework firework-a"></span>
+              <span class="firework firework-b"></span>
+              <span class="firework firework-c"></span>
+              <span class="spark spark-a"></span>
+              <span class="spark spark-b"></span>
+              <span class="spark spark-c"></span>
+              <span class="spark spark-d"></span>
+            </div>
+            <div class="win-card">
+              <p class="win-kicker">2048 reached</p>
+              <h2 id="win-title">You made it.</h2>
+              <p id="win-message" class="win-message">
+                Celebrate this run, share the link, or keep pushing for a bigger tile.
+              </p>
+              <div class="win-actions">
+                <button id="btn-win-continue" class="btn">Continue</button>
+                <button id="btn-win-new" class="btn primary">New Game</button>
+                <button id="btn-win-share" class="btn">Share Game</button>
+              </div>
+            </div>
+          </div>
+        </div>
 
         <div id="status" class="status" aria-live="polite"></div>
 
@@ -37,6 +69,10 @@
               Seed:
               <input id="seed" type="text" inputmode="numeric" placeholder="random" />
             </label>
+            <button id="btn-seed-replay" class="btn">Replay Seed</button>
+            <button id="btn-seed-random" class="btn" title="Generate a new random seed">
+              Randomize
+            </button>
           </div>
 
           <div class="control-row">
@@ -50,7 +86,7 @@
 
           <div class="control-row">
             <label class="speed-input">
-              AI Speed:
+              <span id="speed-caption">AI Speed:</span>
               <input id="speed" type="range" min="0" max="6" value="3" step="1" />
               <span id="speed-label">4/s</span>
             </label>

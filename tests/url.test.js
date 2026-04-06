@@ -32,6 +32,7 @@ describe("encodeState / decodeState", () => {
     expect(d.seed).toBe(12345);
     expect(d.moves).toEqual([0, 1, 2, 3]);
     expect(d.cursor).toBe(4);
+    expect(d.replay).toBe(false);
   });
 
   it("defaults cursor to end when omitted in URL", () => {
@@ -51,6 +52,16 @@ describe("encodeState / decodeState", () => {
     expect(d.seed).toBe(42);
     expect(d.moves).toEqual([]);
     expect(d.cursor).toBe(0);
+    expect(d.replay).toBe(false);
+  });
+
+  it("round-trips replay links", () => {
+    const hash = encodeState({ seed: 42, moves: [0, 1, 2], cursor: 0, replay: true });
+    const d = decodeState(hash);
+    expect(d.seed).toBe(42);
+    expect(d.moves).toEqual([0, 1, 2]);
+    expect(d.cursor).toBe(0);
+    expect(d.replay).toBe(true);
   });
 
   it("clamps cursor to [0, moves.length]", () => {

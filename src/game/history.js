@@ -122,6 +122,23 @@ export class History {
     return path;
   }
 
+  // Walk forward from the root along each node's preferred child (falling
+  // back to the first child) so the UI can render the full visible branch,
+  // including future nodes beyond the current cursor.
+  preferredPathFromRoot() {
+    const path = [];
+    let node = this.nodes.get(this.root);
+    while (node) {
+      path.push(node);
+      if (node.children.size === 0) break;
+      const preferred = node.preferredChild !== null ? this.nodes.get(node.preferredChild) : null;
+      const nextId =
+        preferred?.parent === node.id ? node.preferredChild : node.children.values().next().value;
+      node = this.nodes.get(nextId);
+    }
+    return path;
+  }
+
   // Get the sequence of moves from root to cursor
   movesFromRoot() {
     return this.pathToCursor()

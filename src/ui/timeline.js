@@ -1,4 +1,6 @@
-// Timeline renderer: one tick per move along the path from root to cursor.
+// Timeline renderer: one tick per move along the visible branch from root to
+// leaf, following each node's preferred child. This lets replay links show
+// the full recorded path immediately while keeping future ticks clickable.
 // Highlights direction-changes (vs previous move) and branch points (nodes
 // whose parent has multiple children).
 // Ticks are rendered as <button> elements for keyboard/screen-reader access.
@@ -27,7 +29,7 @@ export function createTimelineRenderer(container, onTickClick) {
   let tickElements = []; // parallel array of DOM <button> elements
 
   function render(history) {
-    const path = history.pathToCursor();
+    const path = history.preferredPathFromRoot();
     const cursorId = history.cursor;
 
     // Determine the common prefix length (ticks that haven't changed).

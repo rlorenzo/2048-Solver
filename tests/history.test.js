@@ -82,6 +82,19 @@ describe("History", () => {
     expect(h.movesFromRoot()).toEqual([0, 1, 2]);
   });
 
+  it("preferredPathFromRoot includes future nodes on the visible branch", () => {
+    const h = new History(makeBoard(1));
+    h.record(0, makeBoard(2), 0, null);
+    h.record(1, makeBoard(3), 0, null);
+    h.record(2, makeBoard(4), 0, null);
+    h.stepBack();
+    h.stepBack();
+
+    const visible = h.preferredPathFromRoot();
+    expect(visible.map((node) => node.dir)).toEqual([null, 0, 1, 2]);
+    expect(h.current().dir).toBe(0);
+  });
+
   it("branchPointsOnPath identifies forks", () => {
     const h = new History(makeBoard(1));
     h.record(0, makeBoard(2), 0, null);

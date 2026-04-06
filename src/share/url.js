@@ -98,10 +98,11 @@ function fromB64(str) {
   return new Uint8Array(bytes);
 }
 
-export function encodeState({ seed, moves, cursor }) {
+export function encodeState({ seed, moves, cursor, replay = false }) {
   const parts = [`s=${seed >>> 0}`];
   if (moves.length > 0) parts.push(`m=${encodeMoves(moves)}`);
   if (cursor !== undefined && cursor !== moves.length) parts.push(`p=${cursor}`);
+  if (replay && moves.length > 0) parts.push("r=1");
   return "#" + parts.join("&");
 }
 
@@ -124,5 +125,6 @@ export function decodeState(hash) {
   } else {
     cursor = moves.length;
   }
-  return { seed: seed >>> 0, moves, cursor };
+  const replay = params.get("r") === "1";
+  return { seed: seed >>> 0, moves, cursor, replay };
 }
