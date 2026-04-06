@@ -11,6 +11,7 @@ export function createTimelineRenderer(container, onTickClick) {
     const target = e.target.closest("[data-node-id]");
     if (!target) return;
     const id = parseInt(target.dataset.nodeId, 10);
+    if (!Number.isFinite(id)) return;
     onTickClick(id);
   });
 

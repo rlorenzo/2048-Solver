@@ -74,8 +74,12 @@ function updateSpeedLabel() {
 function newGame(seed, replayMoves = [], replayCursor = null) {
   if (aiRunning) stopAI();
   // Invalidate any in-flight AI requests: increment the game epoch and
-  // clear pending resolvers so stale worker responses are silently dropped.
+  // resolve pending promises with a sentinel so awaiting code completes
+  // (the epoch check in aiStep will discard the result).
   gameEpoch++;
+  for (const resolve of pendingAI.values()) {
+    resolve({ dir: -1, scores: [0, 0, 0, 0], depth: 0 });
+  }
   pendingAI.clear();
   const actualSeed = seed >>> 0;
   const rng = mulberry32(actualSeed);
@@ -234,10 +238,10 @@ function fullMoveSequence() {
 
 // --- AI
 
-// Pending AI request resolvers, keyed by request id. A single shared
-// worker.onmessage routes responses by id and removes the entry, so
-// invalidated requests (from newGame incrementing aiRequestId) don't
-// leave orphaned listeners.
+// Pending AI request resolvers, keyed by request id. The shared worker
+// message handler routes responses by id and removes the matching entry.
+// On newGame, pending entries are resolved with a sentinel so the awaiting
+// code in aiStep completes and the epoch check discards the stale result.
 const pendingAI = new Map();
 
 function ensureWorker() {
