@@ -139,7 +139,7 @@ function applyMove(dir, opts = {}) {
 // Single step of the FNV-1a–like hash used by applyMove. Kept separate from
 // the full-path version so applyMove can call it incrementally.
 function stepHash(h, dir) {
-  h = (h * 0x9e3779b1 + dir) >>> 0; // Knuth multiplicative hash step
+  h = (Math.imul(h, 0x9e3779b1) + dir) >>> 0; // Knuth multiplicative hash step
   h ^= h >>> 16;
   return h >>> 0;
 }
@@ -331,6 +331,7 @@ window.addEventListener("keydown", (e) => {
   const k = e.key;
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
+    if (aiRunning) stopAI();
     if (k === "ArrowLeft") {
       state.history.stepBack();
     } else {
@@ -406,11 +407,12 @@ btnNew.addEventListener("click", () => {
   let seed;
   if (raw === "") {
     seed = randomSeed();
+  } else if (/^\d+$/.test(raw)) {
+    // Only accept fully numeric decimal seeds so "123abc" is rejected
+    // instead of being partially parsed by parseInt.
+    seed = parseInt(raw, 10) >>> 0;
   } else {
-    // Validate parse BEFORE `>>> 0` — otherwise "abc" parses to NaN and
-    // `NaN >>> 0 === 0`, silently accepting garbage as seed 0.
-    const parsed = parseInt(raw, 10);
-    seed = Number.isFinite(parsed) ? parsed >>> 0 : randomSeed();
+    seed = randomSeed();
   }
   newGame(seed);
 });
