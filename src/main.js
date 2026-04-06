@@ -86,6 +86,7 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
   const { board } = initialBoard(rng);
   const history = new History(board);
   state = { seed: actualSeed, history };
+  invalidateForwardDepthCache();
   seedInput.value = String(actualSeed);
 
   // Replay moves if provided

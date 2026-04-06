@@ -23,6 +23,7 @@ export function createTimelineRenderer(container, onTickClick) {
   // State from the previous render for incremental updates.
   let prevPathIds = []; // node ids in order
   let prevCursorId = -1;
+  let prevCursorIdx = -1; // index into tickElements of the current tick
   let tickElements = []; // parallel array of DOM <button> elements
 
   function render(history) {
@@ -70,37 +71,38 @@ export function createTimelineRenderer(container, onTickClick) {
       tickElements.push(tick);
     }
 
-    // Update the "current" highlight — only touch the two affected ticks.
-    if (cursorId !== prevCursorId) {
-      for (const el of tickElements) {
-        const id = parseInt(el.dataset.nodeId, 10);
-        if (id === prevCursorId) {
-          el.classList.remove("current");
-          el.removeAttribute("aria-current");
-        }
-        if (id === cursorId) {
-          el.classList.add("current");
-          el.setAttribute("aria-current", "step");
-        }
+    // Update the "current" highlight — touch only the old and new tick by
+    // index rather than looping all elements.
+    const cursorChanged = cursorId !== prevCursorId;
+    if (cursorChanged) {
+      if (prevCursorIdx >= 0 && prevCursorIdx < tickElements.length) {
+        tickElements[prevCursorIdx].classList.remove("current");
+        tickElements[prevCursorIdx].removeAttribute("aria-current");
       }
+      const newIdx = path.findIndex((n) => n.id === cursorId);
+      if (newIdx >= 0 && newIdx < tickElements.length) {
+        tickElements[newIdx].classList.add("current");
+        tickElements[newIdx].setAttribute("aria-current", "step");
+      }
+      prevCursorIdx = newIdx;
     }
 
     // Cache state for next render.
     prevPathIds = path.map((n) => n.id);
-    const cursorChanged = cursorId !== prevCursorId;
     prevCursorId = cursorId;
 
     // Only scroll when the cursor actually moved (avoids forced layout on
     // every render during autoplay when cursor advances by one tick).
     if (cursorChanged) {
-      const current = container.querySelector(".tick.current");
-      if (current) current.scrollIntoView({ block: "nearest", inline: "center" });
+      const el = prevCursorIdx >= 0 ? tickElements[prevCursorIdx] : null;
+      if (el) el.scrollIntoView({ block: "nearest", inline: "center" });
     }
   }
 
   function reset() {
     prevPathIds = [];
     prevCursorId = -1;
+    prevCursorIdx = -1;
     tickElements = [];
     container.innerHTML = "";
   }
