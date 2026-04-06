@@ -245,8 +245,10 @@ function cachedForwardDepth() {
   const depth = state.history.depth();
   let fwd = depth;
   let node = state.history.current();
-  while (node.children.size > 0) {
-    node = state.history.get(node.children.values().next().value);
+  while (node) {
+    const nextId = state.history.preferredChildId(node);
+    if (nextId === null) break;
+    node = state.history.get(nextId);
     fwd++;
   }
   _fwdDepthCache = { cursorId, value: fwd };
@@ -354,8 +356,9 @@ function fullMoveSequence() {
 
   // Cursor → end of preferred branch
   let node = state.history.current();
-  while (node.children.size > 0) {
-    const childId = node.children.values().next().value;
+  while (node) {
+    const childId = state.history.preferredChildId(node);
+    if (childId === null) break;
     const child = state.history.get(childId);
     moves.push(child.dir);
     node = child;
@@ -397,6 +400,15 @@ function requestAIMove() {
 }
 
 async function aiStep() {
+  if (replayMode) {
+    if (!state.history.stepForward()) {
+      stopAI();
+      return;
+    }
+    renderAll();
+    syncURL();
+    return;
+  }
   const cur = state.history.current();
   if (!canMove(cur.board)) {
     stopAI();

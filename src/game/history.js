@@ -85,13 +85,20 @@ export class History {
   // Step forward along the preferred child (falling back to first child).
   stepForward() {
     const cur = this.current();
-    if (cur.children.size === 0) return false;
-    const preferred = cur.preferredChild !== null ? this.nodes.get(cur.preferredChild) : null;
-    const nextChild =
-      preferred?.parent === cur.id ? cur.preferredChild : cur.children.values().next().value;
+    const nextChild = this.preferredChildId(cur);
+    if (nextChild === null) return false;
     cur.preferredChild = nextChild;
     this.cursor = nextChild;
     return true;
+  }
+
+  preferredChildId(nodeOrId) {
+    const node = typeof nodeOrId === "number" ? this.nodes.get(nodeOrId) : nodeOrId;
+    if (!node || node.children.size === 0) return null;
+    const preferred = node.preferredChild !== null ? this.nodes.get(node.preferredChild) : null;
+    return preferred?.parent === node.id
+      ? node.preferredChild
+      : node.children.values().next().value;
   }
 
   // Jump the cursor to any node id
@@ -130,10 +137,8 @@ export class History {
     let node = this.nodes.get(this.root);
     while (node) {
       path.push(node);
-      if (node.children.size === 0) break;
-      const preferred = node.preferredChild !== null ? this.nodes.get(node.preferredChild) : null;
-      const nextId =
-        preferred?.parent === node.id ? node.preferredChild : node.children.values().next().value;
+      const nextId = this.preferredChildId(node);
+      if (nextId === null) break;
       node = this.nodes.get(nextId);
     }
     return path;
