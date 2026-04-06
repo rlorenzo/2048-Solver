@@ -1,7 +1,9 @@
 # 2048 Solver
 
-A local 2048 web app with human play, AI auto-play, timeline scrubbing with
+A 2048 web app with human play, AI auto-play, timeline scrubbing with
 branching rollback, and shareable seed-based replays.
+
+**[Play it live](https://rlorenzo.github.io/2048-Solver/)**
 
 ## Features
 
@@ -46,6 +48,55 @@ vp preview          # serve built output
 | `N`                   | New game with random seed   |
 | Click a timeline tick | Jump cursor to that move    |
 
+## Deployment
+
+The app is 100% client-side — no backend needed. `vp build` produces a
+static `dist/` folder that any host can serve.
+
+### GitHub Pages (automatic)
+
+This repo includes a GitHub Actions workflow (`.github/workflows/ci-deploy.yml`)
+that runs on every push to `main`:
+
+1. Installs Vite+ and dependencies
+2. Runs `vp check` (lint + format)
+3. Runs `vp test run` (all tests must pass)
+4. Runs `vp build`
+5. Deploys `dist/` to GitHub Pages
+
+To enable it on your fork:
+
+1. Go to **Settings → Pages → Source** and select **GitHub Actions**
+2. Push to `main` — the workflow handles the rest
+3. Your site will be live at `https://<user>.github.io/<repo>/`
+
+> **Note:** the `base` path in `vite.config.ts` is set to `/2048-Solver/`.
+> If you rename the repo, update `base` to match (e.g. `base: "/my-repo/"`).
+
+### Other static hosts
+
+| Host                           | Build command | Publish directory |
+| ------------------------------ | ------------- | ----------------- |
+| **Netlify / Vercel**           | `vp build`    | `dist`            |
+| **Cloudflare Pages**           | `vp build`    | `dist`            |
+| **AWS S3 / any static server** | `vp build`    | upload `dist/`    |
+
+If deploying to the root of a domain (not a subpath), remove the `base`
+line from `vite.config.ts` so asset paths are relative to `/`.
+
+### Manual / local preview
+
+```bash
+vp build
+vp preview          # serves dist/ on http://localhost:4173
+```
+
+Or use any static server:
+
+```bash
+npx serve dist
+```
+
 ## Architecture
 
 ```
@@ -53,6 +104,7 @@ src/
 ├── main.js            Controller: input, UI wiring, AI loop, URL sync
 ├── game/
 │   ├── board.js       Board model (Uint8Array(16) of log2 values)
+│   ├── constants.js   Shared DIR/DIR_NAMES constants
 │   ├── rng.js         mulberry32 seeded PRNG
 │   └── history.js     Branching move tree (cursor + siblings)
 ├── ai/
@@ -97,7 +149,7 @@ testing.
 ```
 
 - `s`: unsigned 32-bit seed (decimal)
-- `m`: base64-ish packed move list (2 bits per move) followed by `.<length>`
+- `m`: base64url packed move list (2 bits per move) followed by `.<length>`
   (base-36)
 - `p`: cursor position (omitted when cursor is at end)
 
@@ -106,8 +158,8 @@ testing.
 Each move appends a new node to a tree. When you rewind the cursor and play
 a different direction, a new sibling is created; the old branch stays alive.
 The timeline renders the current root→cursor path and marks any node whose
-parent has >1 child with a small blue dot. The share-link captures the
-forward-most path from the root, not just the current cursor.
+parent has >1 child with a small blue dot. The share-link encodes the
+root→cursor path plus any forward moves along the preferred branch.
 
 ## Tests
 

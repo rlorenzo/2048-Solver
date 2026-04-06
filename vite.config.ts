@@ -1,6 +1,7 @@
 import { defineConfig } from "vite-plus";
 
 export default defineConfig({
+  base: "/2048-Solver/",
   staged: {
     "*": "vp check --fix",
   },
