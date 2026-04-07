@@ -130,6 +130,7 @@ function handleWinOverlayKeydown(e) {
 }
 
 function showWinOverlay() {
+  if (isWinOverlayOpen()) return;
   lastFocusedBeforeWinOverlay =
     document.activeElement instanceof HTMLElement ? document.activeElement : null;
   winOverlayEl.classList.remove("hidden");

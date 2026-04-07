@@ -29,10 +29,12 @@ function slideLeft(cells) {
     if (v === 0) continue;
     if (prev === v) {
       // Saturate at 0xf (exp 15 = tile 32768) so merging two 15s doesn't
-      // wrap to 0 when packed into a 4-bit nibble by packRow().
-      const merged = Math.min(v + 1, 0xf);
+      // wrap to 0 when packed into a 4-bit nibble by packRow(). Score still
+      // reflects the true merged exponent even when stored cells saturate.
+      const mergedExp = v + 1;
+      const merged = Math.min(mergedExp, 0xf);
       out[idx - 1] = merged;
-      score += 2 ** merged;
+      score += 2 ** mergedExp;
       prev = 0;
     } else {
       out[idx] = v;

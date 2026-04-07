@@ -101,6 +101,13 @@ describe("bitboard misc", () => {
     expect(countEmpty(bits)).toBe(9);
   });
 
+  it("keeps true merge score when saturated tiles combine", () => {
+    const bytes = new Uint8Array([15, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const moved = bitMove(fromBytes(bytes), DIR.LEFT);
+    expect(moved.score).toBe(65536);
+    expect(toBytes(moved.board)[0]).toBe(15);
+  });
+
   it("DIR constants are distinct", () => {
     const ds = new Set(Object.values(DIR));
     expect(ds.size).toBe(4);
