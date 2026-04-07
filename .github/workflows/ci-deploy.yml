@@ -20,20 +20,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Vite+
-        run: curl -fsSL https://vite.plus | bash
+      - uses: voidzero-dev/setup-vp@v1
+        with:
+          cache: true
 
       - name: Install dependencies
-        run: ~/.vite-plus/bin/vp install
+        run: vp install
 
       - name: Lint & format check
-        run: ~/.vite-plus/bin/vp check
+        run: vp check
 
       - name: Run tests
-        run: ~/.vite-plus/bin/vp test run
+        run: vp test run
 
       - name: Build
-        run: ~/.vite-plus/bin/vp build
+        run: vp build
 
       - name: Upload build artifact
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'

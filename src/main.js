@@ -61,6 +61,7 @@ let gameEpoch = 0; // incremented on newGame to invalidate in-flight AI
 let winAcknowledged = false;
 let replayMode = false;
 let lastFocusedBeforeWinOverlay = null;
+let shareFeedbackTimer = null;
 
 // Speed slider -> moves per second. Slider values 0..6 map into SPEEDS.
 const SPEEDS = [1, 2, 4, 8, 16, 40, 200]; // per second
@@ -161,8 +162,20 @@ function setShareButtonFeedback(label) {
 }
 
 function resetShareButtonFeedback() {
+  if (shareFeedbackTimer !== null) {
+    clearTimeout(shareFeedbackTimer);
+    shareFeedbackTimer = null;
+  }
   btnShare.textContent = "Copy Share Link";
   btnWinShare.textContent = "Share Game";
+}
+
+function scheduleShareButtonFeedbackReset() {
+  if (shareFeedbackTimer !== null) clearTimeout(shareFeedbackTimer);
+  shareFeedbackTimer = setTimeout(() => {
+    shareFeedbackTimer = null;
+    resetShareButtonFeedback();
+  }, 1500);
 }
 
 function updatePlayButtonLabel() {
@@ -189,8 +202,10 @@ async function copyShareLink() {
   try {
     await navigator.clipboard.writeText(url);
     setShareButtonFeedback("Copied!");
+    scheduleShareButtonFeedbackReset();
   } catch {
     prompt("Copy this link:", url);
+    scheduleShareButtonFeedbackReset();
   }
 }
 
@@ -384,6 +399,7 @@ function syncURLNow() {
     seed: state.seed,
     moves: movesAll,
     cursor: cursorPos,
+    replay: replayMode && movesAll.length > 0,
   });
   history.replaceState(null, "", hash);
 }
