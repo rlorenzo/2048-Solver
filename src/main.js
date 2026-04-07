@@ -453,15 +453,21 @@ async function aiStep() {
   // we were awaiting the worker. (gameEpoch is separate from the per-
   // request nextRequestId used for worker message routing.)
   const epoch = gameEpoch;
-  let dir;
+  let result;
   try {
-    ({ dir } = await requestAIMove());
+    result = await requestAIMove();
   } catch (error) {
     stopAI();
     setStatusMessage(error instanceof Error ? error.message : String(error), "lose");
     return;
   }
   if (gameEpoch !== epoch) return; // stale — game was reset
+  if (result?.error) {
+    stopAI();
+    setStatusMessage(result.error, "lose");
+    return;
+  }
+  const { dir } = result;
   if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
     stopAI();
     return;
