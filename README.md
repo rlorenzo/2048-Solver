@@ -185,4 +185,4 @@ AI heuristic design follows [Robert Xiao's nneonneo/2048-ai](https://github.com/
 
 ## License
 
-MIT.
+GPL-3.0-or-later. See [LICENSE](LICENSE).

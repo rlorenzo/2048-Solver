@@ -10,17 +10,53 @@
 // create/remove/update ticks that changed. scrollIntoView is only called
 // when the cursor position actually moved.
 
+import { DIR_ARROWS } from "../game/constants.js";
+
 const DIR_CLASSES = ["tick-up", "tick-right", "tick-down", "tick-left"];
 
-export function createTimelineRenderer(container, onTickClick) {
+const GRADE_TICK_CLASS = {
+  best: "tick-grade-best",
+  good: "tick-grade-good",
+  ok: "tick-grade-ok",
+  mistake: "tick-grade-mistake",
+  blunder: "tick-grade-blunder",
+};
+
+export function createTimelineRenderer(container, onTickClick, onTickHover) {
   container.addEventListener("click", (e) => {
     if (!(e.target instanceof Element)) return;
     const target = e.target.closest("[data-node-id]");
     if (!target) return;
     const id = parseInt(target.dataset.nodeId, 10);
     if (!Number.isFinite(id)) return;
-    onTickClick(id);
+    onTickClick(id, target);
   });
+
+  if (onTickHover) {
+    container.addEventListener(
+      "pointerenter",
+      (e) => {
+        if (!(e.target instanceof Element)) return;
+        const target = e.target.closest("[data-node-id]");
+        if (!target) return;
+        const id = parseInt(target.dataset.nodeId, 10);
+        if (!Number.isFinite(id)) return;
+        onTickHover(id, target);
+      },
+      true,
+    );
+
+    container.addEventListener(
+      "pointerleave",
+      (e) => {
+        if (!(e.target instanceof Element)) return;
+        const target = e.target.closest("[data-node-id]");
+        if (!target) return;
+        onTickHover(null, null);
+      },
+      true,
+    );
+  }
 
   // State from the previous render for incremental updates.
   let prevPathIds = []; // node ids in order
@@ -28,7 +64,7 @@ export function createTimelineRenderer(container, onTickClick) {
   let prevCursorIdx = -1; // index into tickElements of the current tick
   let tickElements = []; // parallel array of DOM <button> elements
 
-  function render(history) {
+  function render(history, moveGrades) {
     const path = history.preferredPathFromRoot();
     const cursorId = history.cursor;
 
@@ -48,11 +84,9 @@ export function createTimelineRenderer(container, onTickClick) {
     }
 
     // Update retained ticks so derived styling/ARIA stays in sync even when
-    // node ids are unchanged but branch/turn state changes.
-    let prevDir = null;
+    // node ids are unchanged but grade state changes.
     for (let i = 0; i < commonLen; i++) {
-      configureTick(tickElements[i], path[i], i, prevDir, history);
-      prevDir = path[i].dir;
+      configureTick(tickElements[i], path[i], i, moveGrades);
     }
 
     // Create/update ticks from commonLen onward.
@@ -61,10 +95,9 @@ export function createTimelineRenderer(container, onTickClick) {
       const tick = document.createElement("button");
       tick.type = "button";
       tick.dataset.nodeId = String(node.id);
-      configureTick(tick, node, i, prevDir, history);
+      configureTick(tick, node, i, moveGrades);
       container.appendChild(tick);
       tickElements.push(tick);
-      prevDir = node.dir;
     }
 
     // Update the "current" highlight — touch only the old and new tick by
@@ -95,7 +128,13 @@ export function createTimelineRenderer(container, onTickClick) {
     // every render during autoplay when cursor advances by one tick).
     if (cursorChanged) {
       const el = prevCursorIdx >= 0 ? tickElements[prevCursorIdx] : null;
-      if (el) el.scrollIntoView({ block: "nearest", inline: "center" });
+      if (el) {
+        // Scroll within the timeline container only — avoid scrollIntoView
+        // which also scrolls ancestor elements (pushes the board off-screen
+        // on mobile during autoplay).
+        const left = el.offsetLeft - container.offsetWidth / 2 + el.offsetWidth / 2;
+        container.scrollLeft = Math.max(0, left);
+      }
     }
   }
 
@@ -110,30 +149,34 @@ export function createTimelineRenderer(container, onTickClick) {
   return { render, reset };
 }
 
-function configureTick(tick, node, index, prevDir, history) {
+function configureTick(tick, node, index, moveGrades) {
   tick.dataset.nodeId = String(node.id);
   tick.removeAttribute("aria-current");
   if (node.dir === null) {
     tick.className = "tick";
     tick.style.background = "var(--accent)";
+    tick.textContent = "\u25CF";
     tick.setAttribute("aria-label", "Start");
     return;
   }
 
-  const isTurn = prevDir !== null && node.dir !== prevDir;
-  const parent = history.get(node.parent);
-  const isBranch = parent.children.size > 1;
   tick.className = `tick ${DIR_CLASSES[node.dir]}`;
   tick.style.background = "";
-  if (isTurn) tick.classList.add("turn");
-  if (isBranch) tick.classList.add("branch");
-  tick.setAttribute("aria-label", describeTick(index, node.dir, isTurn, isBranch));
+  tick.textContent = DIR_ARROWS[node.dir];
+
+  // Apply grade coloring if available
+  const grade = moveGrades?.get(node.id);
+  if (grade) {
+    const gradeClass = GRADE_TICK_CLASS[grade.grade];
+    if (gradeClass) tick.classList.add(gradeClass);
+  }
+
+  tick.setAttribute("aria-label", describeTick(index, node.dir, grade));
 }
 
-function describeTick(index, dir, isTurn, isBranch) {
+function describeTick(index, dir, grade) {
   const names = ["Up", "Right", "Down", "Left"];
   const parts = [`Move ${index}: ${names[dir]}`];
-  if (isTurn) parts.push("(direction change)");
-  if (isBranch) parts.push("(branch point)");
+  if (grade) parts.push(`[${grade.grade}]`);
   return parts.join(" ");
 }

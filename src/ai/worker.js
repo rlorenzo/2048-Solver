@@ -15,6 +15,9 @@ function sanitizeDepth(depth) {
 
 self.addEventListener("message", (e) => {
   const id = e?.data?.id;
+  // Pass through type and epoch fields unchanged for caller routing.
+  const type = e?.data?.type;
+  const epoch = e?.data?.epoch;
   try {
     const { board, depth } = e.data;
     const bytes = new Uint8Array(board);
@@ -23,7 +26,7 @@ self.addEventListener("message", (e) => {
     const t0 = performance.now();
     const result = bestMove(bits, safeDepth);
     const ms = performance.now() - t0;
-    self.postMessage({ id, ...result, ms });
+    self.postMessage({ id, ...result, ms, type, epoch });
   } catch (err) {
     self.postMessage({
       id,
@@ -31,6 +34,8 @@ self.addEventListener("message", (e) => {
       scores: [0, 0, 0, 0],
       depth: 0,
       error: err instanceof Error ? err.message : String(err),
+      type,
+      epoch,
     });
   }
 });
