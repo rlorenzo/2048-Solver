@@ -186,14 +186,18 @@ function updateSpeedCaption() {
   speedCaption.textContent = replayMode ? "Playback Speed:" : "AI Speed:";
 }
 
-function buildShareURL() {
+function currentURLHash() {
   const moves = fullMoveSequence();
-  const hash = encodeState({
+  return encodeState({
     seed: state.seed,
     moves,
-    cursor: moves.length > 0 ? 0 : state.history.depth(),
-    replay: moves.length > 0,
+    cursor: state.history.depth(),
+    replay: replayMode && moves.length > 0,
   });
+}
+
+function buildShareURL() {
+  const hash = currentURLHash();
   return `${window.location.origin}${window.location.pathname}${hash}`;
 }
 
@@ -393,14 +397,7 @@ function syncURL() {
 }
 
 function syncURLNow() {
-  const movesAll = fullMoveSequence();
-  const cursorPos = state.history.depth();
-  const hash = encodeState({
-    seed: state.seed,
-    moves: movesAll,
-    cursor: cursorPos,
-    replay: replayMode && movesAll.length > 0,
-  });
+  const hash = currentURLHash();
   history.replaceState(null, "", hash);
 }
 
