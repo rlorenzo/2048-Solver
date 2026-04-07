@@ -60,6 +60,7 @@ let nextRequestId = 0; // monotonic per-request ID for worker message routing
 let gameEpoch = 0; // incremented on newGame to invalidate in-flight AI
 let winAcknowledged = false;
 let replayMode = false;
+let lastFocusedBeforeWinOverlay = null;
 
 // Speed slider -> moves per second. Slider values 0..6 map into SPEEDS.
 const SPEEDS = [1, 2, 4, 8, 16, 40, 200]; // per second
@@ -98,13 +99,55 @@ function randomizeSeedInput() {
   return seed;
 }
 
+function getWinOverlayFocusableElements() {
+  return [...winOverlayEl.querySelectorAll("button:not([disabled])")].filter(
+    (el) => el instanceof HTMLElement && !el.hidden && el.getAttribute("aria-hidden") !== "true",
+  );
+}
+
+function handleWinOverlayKeydown(e) {
+  if (e.key !== "Tab" || !isWinOverlayOpen()) return;
+  const focusable = getWinOverlayFocusableElements();
+  if (focusable.length === 0) {
+    e.preventDefault();
+    if (winOverlayEl instanceof HTMLElement) winOverlayEl.focus();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  const active = document.activeElement;
+  if (e.shiftKey) {
+    if (active === first || !winOverlayEl.contains(active)) {
+      e.preventDefault();
+      last.focus();
+    }
+    return;
+  }
+  if (active === last || !winOverlayEl.contains(active)) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 function showWinOverlay() {
+  lastFocusedBeforeWinOverlay =
+    document.activeElement instanceof HTMLElement ? document.activeElement : null;
   winOverlayEl.classList.remove("hidden");
+  winOverlayEl.addEventListener("keydown", handleWinOverlayKeydown);
   btnWinNew.focus();
 }
 
 function hideWinOverlay() {
   winOverlayEl.classList.add("hidden");
+  winOverlayEl.removeEventListener("keydown", handleWinOverlayKeydown);
+  if (
+    lastFocusedBeforeWinOverlay &&
+    document.contains(lastFocusedBeforeWinOverlay) &&
+    typeof lastFocusedBeforeWinOverlay.focus === "function"
+  ) {
+    lastFocusedBeforeWinOverlay.focus();
+  }
+  lastFocusedBeforeWinOverlay = null;
 }
 
 function isWinOverlayOpen() {
@@ -512,6 +555,15 @@ function stopAI() {
 
 window.addEventListener("keydown", (e) => {
   if (!state) return;
+  const k = e.key;
+  if (isWinOverlayOpen()) {
+    if (k === "Escape") {
+      e.preventDefault();
+      winAcknowledged = true;
+      hideWinOverlay();
+    }
+    return;
+  }
   // Don't intercept keys when focus is inside interactive controls — let
   // them handle their own keyboard interaction (e.g. Space on a button
   // should click it, not toggle AI).
@@ -525,14 +577,6 @@ window.addEventListener("keydown", (e) => {
     e.target?.isContentEditable
   )
     return;
-  const k = e.key;
-  if (isWinOverlayOpen()) {
-    if (k === "Escape") {
-      winAcknowledged = true;
-      hideWinOverlay();
-    }
-    return;
-  }
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
     if (aiRunning) stopAI();
