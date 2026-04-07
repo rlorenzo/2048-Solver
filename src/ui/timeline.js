@@ -75,7 +75,7 @@ export function createTimelineRenderer(container, onTickClick) {
         tickElements[prevCursorIdx].classList.remove("current");
         tickElements[prevCursorIdx].removeAttribute("aria-current");
       }
-      const newIdx = path.findIndex((n) => n.id === cursorId);
+      const newIdx = history.depth();
       if (newIdx >= 0 && newIdx < tickElements.length) {
         tickElements[newIdx].classList.add("current");
         tickElements[newIdx].setAttribute("aria-current", "step");

@@ -79,6 +79,11 @@ describe("encodeState / decodeState", () => {
     expect(decodeMoves(bogus)).toEqual([]);
   });
 
+  it("rejects overlong base-36 move-count suffixes before parsing", () => {
+    const tooLong = "A." + "z".repeat(10);
+    expect(decodeMoves(tooLong)).toEqual([]);
+  });
+
   it("rejects garbage seeds", () => {
     expect(decodeState("#s=notanumber")).toBeNull();
   });

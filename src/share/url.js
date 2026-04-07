@@ -6,6 +6,7 @@ const ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789
 // Hard cap on decoded move count to bound allocations from untrusted URLs.
 // 50k moves is well beyond any realistic 2048 game.
 const MAX_MOVES = 50000;
+const MAX_MOVE_COUNT_LEN = MAX_MOVES.toString(36).length;
 // Hard cap on the base64url string length to bound fromB64 work regardless
 // of the declared move count.
 const MAX_B64_LENGTH = 100000;
@@ -36,6 +37,7 @@ export function decodeMoves(str) {
   if (dot < 0) return [];
   const b64 = str.slice(0, dot);
   const lenStr = str.slice(dot + 1);
+  if (lenStr.length === 0 || lenStr.length > MAX_MOVE_COUNT_LEN) return [];
   if (!BASE36_RE.test(lenStr)) return [];
   const length = parseInt(lenStr, 36);
   if (!Number.isFinite(length) || length < 0 || length > MAX_MOVES) return [];
