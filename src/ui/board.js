@@ -146,8 +146,13 @@ export function createBoardRenderer(container) {
       // Register cancellation cleanup
       cancelCleanup = () => {
         cleanup();
-        // Unsuppress all cells
-        for (let i = 0; i < CELLS; i++) cells[i].style.visibility = "";
+        // Unsuppress all cells and clear animation classes so next render
+        // starts from a consistent baseline
+        for (let i = 0; i < CELLS; i++) {
+          cells[i].style.visibility = "";
+          cells[i].classList.remove("new", "merged");
+        }
+        prevExps = new Uint8Array(board);
         resolve();
       };
 
