@@ -772,12 +772,44 @@ details[open] > .settings-toggle::before {
   position: relative;
 }
 
+.ad-container {
+  text-align: center;
+}
+
+.ad-container:has(ins[data-ad-status="unfilled"]) {
+  display: none;
+}
+
+.ad-container ins {
+  margin: 16px 0;
+}
+
 .app-footer {
   font-size: 12px;
   color: #8f7a66;
   text-align: center;
   border-top: 1px solid #e0d5c2;
   padding-top: 12px;
+}
+
+.sponsor {
+  margin-top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+.footer-links {
+  margin-top: 8px;
+  font-size: 11px;
+}
+
+.footer-links a {
+  color: #a09080;
+  text-decoration: none;
+}
+
+.footer-links a:hover {
+  text-decoration: underline;
 }
 
 .strategy-link {
