@@ -33,29 +33,29 @@ export function createTimelineRenderer(container, onTickClick, onTickHover) {
   });
 
   if (onTickHover) {
-    container.addEventListener(
-      "pointerenter",
-      (e) => {
-        if (!(e.target instanceof Element)) return;
-        const target = e.target.closest("[data-node-id]");
-        if (!target) return;
-        const id = parseInt(target.dataset.nodeId, 10);
-        if (!Number.isFinite(id)) return;
-        onTickHover(id, target);
-      },
-      true,
-    );
+    // Use pointerover/pointerout instead of pointerenter/pointerleave —
+    // the latter don't bubble, so container-level delegation never fires
+    // for individual tick elements.
+    container.addEventListener("pointerover", (e) => {
+      if (!(e.target instanceof Element)) return;
+      const target = e.target.closest("[data-node-id]");
+      if (!target) return;
+      const id = parseInt(target.dataset.nodeId, 10);
+      if (!Number.isFinite(id)) return;
+      onTickHover(id, target);
+    });
 
-    container.addEventListener(
-      "pointerleave",
-      (e) => {
-        if (!(e.target instanceof Element)) return;
-        const target = e.target.closest("[data-node-id]");
-        if (!target) return;
-        onTickHover(null, null);
-      },
-      true,
-    );
+    container.addEventListener("pointerout", (e) => {
+      if (!(e.target instanceof Element)) return;
+      const target = e.target.closest("[data-node-id]");
+      if (!target) return;
+      // Only dismiss when the pointer leaves a tick entirely (not moving
+      // to a child element within the same tick).
+      const related =
+        e.relatedTarget instanceof Element ? e.relatedTarget.closest("[data-node-id]") : null;
+      if (related === target) return;
+      onTickHover(null, null);
+    });
   }
 
   // State from the previous render for incremental updates.
