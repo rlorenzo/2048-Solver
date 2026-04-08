@@ -1,5 +1,13 @@
 import "./style.css";
-import { DIR, initialBoard, move as boardMove, spawn, canMove, maxTile } from "./game/board.js";
+import {
+  DIR,
+  initialBoard,
+  move as boardMove,
+  moveWithTrajectories,
+  spawn,
+  canMove,
+  maxTile,
+} from "./game/board.js";
 import { mulberry32, randomSeed } from "./game/rng.js";
 import { History } from "./game/history.js";
 import { createBoardRenderer } from "./ui/board.js";
@@ -114,6 +122,8 @@ let hintEpoch = 0; // per-type epoch for stale hint response detection
 let gradeEpoch = 0; // per-type epoch for stale grade response detection
 let winAcknowledged = false;
 let replayMode = false;
+let _pendingAnimation = null;
+let lastAnimationPromise = Promise.resolve();
 let lastFocusedBeforeWinOverlay = null;
 let shareFeedbackTimer = null;
 
@@ -331,7 +341,8 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
 // on every move.
 function applyMove(dir, opts = {}) {
   const cur = state.history.current();
-  const result = boardMove(cur.board, dir);
+  const useTrajectories = !opts.silent && !(aiRunning && speedMs() < 300);
+  const result = useTrajectories ? moveWithTrajectories(cur.board, dir) : boardMove(cur.board, dir);
   if (!result.moved) return false;
 
   const isHumanMove = !opts.silent && !aiRunning;
@@ -364,6 +375,9 @@ function applyMove(dir, opts = {}) {
   invalidateForwardDepthCache();
 
   if (!opts.silent) {
+    if (useTrajectories && result.trajectories) {
+      _pendingAnimation = { trajectories: result.trajectories, mergedCells: result.mergedCells };
+    }
     renderAll();
     syncURL();
   }
@@ -416,7 +430,14 @@ function invalidateForwardDepthCache() {
 
 function renderAll() {
   const cur = state.history.current();
-  boardRenderer.render(cur.board, { spawnPos: cur.spawn?.pos });
+  const anim = _pendingAnimation;
+  _pendingAnimation = null;
+  const renderOpts = { spawnPos: cur.spawn?.pos };
+  if (anim) {
+    renderOpts.trajectories = anim.trajectories;
+    renderOpts.mergedCells = anim.mergedCells;
+  }
+  lastAnimationPromise = boardRenderer.render(cur.board, renderOpts);
   scoreEl.textContent = String(cur.score);
   const bestTile = maxTile(cur.board);
   bestTileEl.textContent = String(bestTile);
@@ -931,6 +952,7 @@ async function aiStep() {
   }
   if (!aiRunning) return;
   applyMove(dir);
+  await lastAnimationPromise;
 }
 
 function startAI() {
@@ -948,9 +970,11 @@ function startAI() {
   updatePlayButtonLabel();
   const loop = async () => {
     if (!aiRunning) return;
+    const start = performance.now();
     await aiStep();
     if (!aiRunning) return;
-    aiTimer = setTimeout(loop, speedMs());
+    const elapsed = performance.now() - start;
+    aiTimer = setTimeout(loop, Math.max(0, speedMs() - elapsed));
   };
   void loop();
 }

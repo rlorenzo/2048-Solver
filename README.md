@@ -129,7 +129,7 @@ Expectimax search on a bitboard representation:
   tables (left-slide and right-slide). Up/down transpose to column-shifts.
 - **Evaluation**: line-based heuristic adapted from
   [nneonneo/2048-ai](https://github.com/nneonneo/2048-ai) — empty cells,
-  possible merges, monotonicity (to rank<sup>4</sup>), and a penalty on the
+  possible merges, snake-pattern continuity (to rank<sup>4</sup>), and a penalty on the
   sum (to rank<sup>3.5</sup>), applied to all 4 rows + 4 columns via an 8-
   lookup `evaluate()`.
 - **Search depth**: auto-adaptive (6 → 8 as the board fills up). Users can

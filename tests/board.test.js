@@ -3,6 +3,7 @@ import {
   DIR,
   emptyBoard,
   move,
+  moveWithTrajectories,
   canMove,
   maxTile,
   emptyCells,
@@ -101,6 +102,126 @@ describe("spawn + initialBoard", () => {
     const b = emptyBoard();
     for (let i = 0; i < 16; i++) b[i] = 1;
     expect(spawn(b, mulberry32(1))).toBeNull();
+  });
+});
+
+describe("moveWithTrajectories", () => {
+  it("simple slide left with no merge", () => {
+    // Row 0: [0,0,0,1] -> slides to [1,0,0,0]
+    const b = boardFrom([0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.LEFT);
+    expect(r.moved).toBe(true);
+    expect(r.score).toBe(0);
+    expect(r.trajectories).toEqual([{ from: 3, to: 0, merged: false, exp: 1 }]);
+    expect(r.mergedCells).toEqual([]);
+  });
+
+  it("merge of two tiles", () => {
+    // Row 0: [1,1,0,0] -> [2,0,0,0], score=4
+    const b = boardFrom([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.LEFT);
+    expect(r.moved).toBe(true);
+    expect(r.score).toBe(4);
+    // Two trajectories: both point to index 0
+    expect(r.trajectories).toHaveLength(2);
+    const surviving = r.trajectories.find((t) => !t.merged);
+    const consumed = r.trajectories.find((t) => t.merged);
+    expect(surviving).toEqual({ from: 0, to: 0, merged: false, exp: 1 });
+    expect(consumed).toEqual({ from: 1, to: 0, merged: true, exp: 1 });
+    expect(r.mergedCells).toEqual([0]);
+  });
+
+  it("multiple merges in one move", () => {
+    // Row 0: [1,1,1,1] -> [2,2,0,0], score=8
+    const b = boardFrom([1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.LEFT);
+    expect(r.moved).toBe(true);
+    expect(r.score).toBe(8);
+    expect(Array.from(r.board).slice(0, 4)).toEqual([2, 2, 0, 0]);
+    // 4 tiles -> 4 trajectory entries (2 merges)
+    expect(r.trajectories).toHaveLength(4);
+    // First merge at position 0: tiles from 0,1
+    const atZero = r.trajectories.filter((t) => t.to === 0);
+    expect(atZero).toHaveLength(2);
+    expect(atZero.find((t) => !t.merged).from).toBe(0);
+    expect(atZero.find((t) => t.merged).from).toBe(1);
+    // Second merge at position 1: tiles from 2,3
+    const atOne = r.trajectories.filter((t) => t.to === 1);
+    expect(atOne).toHaveLength(2);
+    expect(atOne.find((t) => !t.merged).from).toBe(2);
+    expect(atOne.find((t) => t.merged).from).toBe(3);
+    expect(r.mergedCells).toEqual([0, 1]);
+  });
+
+  it("slide RIGHT direction", () => {
+    // Row 0: [1,0,0,0] -> slides right to [0,0,0,1]
+    const b = boardFrom([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.RIGHT);
+    expect(r.moved).toBe(true);
+    expect(r.trajectories).toEqual([{ from: 0, to: 3, merged: false, exp: 1 }]);
+  });
+
+  it("slide UP direction", () => {
+    // Column 0: rows 3 has a tile, should slide to row 0
+    const b = boardFrom([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.UP);
+    expect(r.moved).toBe(true);
+    // flat index 12 -> flat index 0
+    expect(r.trajectories).toEqual([{ from: 12, to: 0, merged: false, exp: 1 }]);
+  });
+
+  it("slide DOWN direction", () => {
+    // Column 0: row 0 has a tile, should slide to row 3
+    const b = boardFrom([1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.DOWN);
+    expect(r.moved).toBe(true);
+    // flat index 0 -> flat index 12
+    expect(r.trajectories).toEqual([{ from: 0, to: 12, merged: false, exp: 1 }]);
+  });
+
+  it("merge with UP direction", () => {
+    // Column 0: rows 0 and 1 both have exp=1, merge to row 0
+    const b = boardFrom([1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.UP);
+    expect(r.moved).toBe(true);
+    expect(r.score).toBe(4);
+    expect(r.trajectories).toHaveLength(2);
+    const surviving = r.trajectories.find((t) => !t.merged);
+    const consumed = r.trajectories.find((t) => t.merged);
+    // index 0 stays at 0 (surviving), index 4 merges into 0 (consumed)
+    expect(surviving).toEqual({ from: 0, to: 0, merged: false, exp: 1 });
+    expect(consumed).toEqual({ from: 4, to: 0, merged: true, exp: 1 });
+    expect(r.mergedCells).toEqual([0]);
+  });
+
+  it("no-op move returns moved=false and empty trajectories", () => {
+    // Checkerboard pattern — no direction can move
+    const b = boardFrom([2, 1, 2, 1, 1, 2, 1, 2, 2, 1, 2, 1, 1, 2, 1, 2]);
+    const r = moveWithTrajectories(b, DIR.LEFT);
+    expect(r.moved).toBe(false);
+    expect(r.trajectories).toEqual([]);
+    expect(r.mergedCells).toEqual([]);
+    expect(r.score).toBe(0);
+    expect(r.board).toBe(b); // same reference
+  });
+
+  it("stationary tiles against the wall are excluded from trajectories", () => {
+    // Row 0: [1,0,0,2] -> slide left -> [1,2,0,0]
+    // tile at index 0 (exp=1) stays at 0 — should NOT be in trajectories
+    // tile at index 3 (exp=2) moves to 1 — should be in trajectories
+    const b = boardFrom([1, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const r = moveWithTrajectories(b, DIR.LEFT);
+    expect(r.moved).toBe(true);
+    expect(r.trajectories).toEqual([{ from: 3, to: 1, merged: false, exp: 2 }]);
+  });
+
+  it("board result matches move() for complex case", () => {
+    const b = boardFrom([1, 1, 0, 0, 2, 0, 2, 0, 0, 3, 3, 0, 1, 2, 3, 4]);
+    const ref = move(b, DIR.LEFT);
+    const r = moveWithTrajectories(b, DIR.LEFT);
+    expect(Array.from(r.board)).toEqual(Array.from(ref.board));
+    expect(r.score).toBe(ref.score);
+    expect(r.moved).toBe(ref.moved);
   });
 });
 

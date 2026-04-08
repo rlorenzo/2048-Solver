@@ -256,8 +256,16 @@ details[open] > .settings-toggle::before {
   position: relative;
 }
 
-.cell {
-  background: var(--cell-bg);
+.tile-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Shared base for grid cells and overlay tiles */
+.cell,
+.tile-anim {
   border-radius: 5px;
   display: flex;
   align-items: center;
@@ -265,11 +273,21 @@ details[open] > .settings-toggle::before {
   font-family: var(--font-display);
   font-weight: 400;
   font-size: clamp(20px, 5.5vw, 42px);
+  color: var(--text);
+}
+
+.cell {
+  background: var(--cell-bg);
   transition:
     background 120ms ease,
     color 120ms ease,
     transform 120ms ease;
-  color: var(--text);
+}
+
+.tile-anim {
+  position: absolute;
+  transition: transform 120ms ease-in-out;
+  will-change: transform;
 }
 
 .cell.empty {
@@ -306,54 +324,54 @@ details[open] > .settings-toggle::before {
   }
 }
 
-.cell.v-2 {
+:is(.cell, .tile-anim).v-2 {
   background: var(--tile-2);
 }
-.cell.v-4 {
+:is(.cell, .tile-anim).v-4 {
   background: var(--tile-4);
 }
-.cell.v-8 {
+:is(.cell, .tile-anim).v-8 {
   background: var(--tile-8);
   color: #f9f6f2;
 }
-.cell.v-16 {
+:is(.cell, .tile-anim).v-16 {
   background: var(--tile-16);
   color: #f9f6f2;
 }
-.cell.v-32 {
+:is(.cell, .tile-anim).v-32 {
   background: var(--tile-32);
   color: #f9f6f2;
 }
-.cell.v-64 {
+:is(.cell, .tile-anim).v-64 {
   background: var(--tile-64);
   color: #f9f6f2;
 }
-.cell.v-128 {
+:is(.cell, .tile-anim).v-128 {
   background: var(--tile-128);
   color: #f9f6f2;
   font-size: clamp(18px, 5vw, 36px);
 }
-.cell.v-256 {
+:is(.cell, .tile-anim).v-256 {
   background: var(--tile-256);
   color: #f9f6f2;
   font-size: clamp(18px, 5vw, 36px);
 }
-.cell.v-512 {
+:is(.cell, .tile-anim).v-512 {
   background: var(--tile-512);
   color: #f9f6f2;
   font-size: clamp(18px, 5vw, 36px);
 }
-.cell.v-1024 {
+:is(.cell, .tile-anim).v-1024 {
   background: var(--tile-1024);
   color: #f9f6f2;
   font-size: clamp(14px, 4vw, 30px);
 }
-.cell.v-2048 {
+:is(.cell, .tile-anim).v-2048 {
   background: var(--tile-2048);
   color: #f9f6f2;
   font-size: clamp(14px, 4vw, 30px);
 }
-.cell.v-super {
+:is(.cell, .tile-anim).v-super {
   background: var(--tile-super);
   color: #f9f6f2;
   font-size: clamp(14px, 4vw, 28px);
@@ -1507,6 +1525,10 @@ kbd {
   }
 
   .settings-toggle::before {
+    transition: none;
+  }
+
+  .tile-anim {
     transition: none;
   }
 }

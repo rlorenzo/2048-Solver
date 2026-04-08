@@ -60,6 +60,40 @@ function slideRowLeft(row) {
   return [out, score];
 }
 
+// Like slideRowLeft but also records trajectory entries for each non-zero tile.
+// Returns [newRow, scoreGained, trajectories].
+function slideRowLeftTracked(row) {
+  const out = [0, 0, 0, 0];
+  const trajectories = [];
+  let score = 0;
+  let idx = 0;
+  let pending = null; // { from, exp } — tile waiting to potentially merge
+
+  for (let i = 0; i < 4; i++) {
+    const v = row[i];
+    if (v === 0) continue;
+    if (pending && pending.exp === v) {
+      out[idx - 1] = v + 1;
+      score += 2 ** (v + 1);
+      trajectories.push({ from: pending.from, to: idx - 1, merged: false, exp: v });
+      trajectories.push({ from: i, to: idx - 1, merged: true, exp: v });
+      pending = null;
+    } else {
+      if (pending) {
+        trajectories.push({ from: pending.from, to: idx - 1, merged: false, exp: pending.exp });
+      }
+      out[idx] = v;
+      pending = { from: i, exp: v };
+      idx++;
+    }
+  }
+  if (pending) {
+    trajectories.push({ from: pending.from, to: idx - 1, merged: false, exp: pending.exp });
+  }
+
+  return [out, score, trajectories];
+}
+
 // Apply a move in the given direction. Returns
 // { board, score, moved } — a NEW board if moved, else original.
 export function move(board, dir) {
@@ -86,6 +120,56 @@ export function move(board, dir) {
   }
 
   return { board: moved ? out : b, score, moved };
+}
+
+// Like move() but also returns trajectory and merge info for animations.
+export function moveWithTrajectories(board, dir) {
+  const b = board;
+  const out = new Uint8Array(CELLS);
+  let score = 0;
+  let moved = false;
+  const trajectories = [];
+  const mergedCells = [];
+
+  for (let line = 0; line < 4; line++) {
+    const row = [0, 0, 0, 0];
+    for (let k = 0; k < 4; k++) {
+      row[k] = b[readIndex(dir, line, k)];
+    }
+    const [newRow, s, rowTrajectories] = slideRowLeftTracked(row);
+    score += s;
+    for (let k = 0; k < 4; k++) {
+      const idx = readIndex(dir, line, k);
+      out[idx] = newRow[k];
+      if (newRow[k] !== row[k]) moved = true;
+    }
+    // Collect merge destinations for this row
+    const rowMergeDests = new Set();
+    for (const t of rowTrajectories) {
+      if (t.merged) rowMergeDests.add(t.to);
+    }
+    // Translate row-local indices to flat board indices and filter
+    for (const t of rowTrajectories) {
+      const fromFlat = readIndex(dir, line, t.from);
+      const toFlat = readIndex(dir, line, t.to);
+      const involvedInMerge = rowMergeDests.has(t.to);
+      // Only include if tile actually moved or was involved in a merge
+      if (fromFlat !== toFlat || involvedInMerge) {
+        trajectories.push({ from: fromFlat, to: toFlat, merged: t.merged, exp: t.exp });
+        if (involvedInMerge && !mergedCells.includes(toFlat)) {
+          mergedCells.push(toFlat);
+        }
+      }
+    }
+  }
+
+  return {
+    board: moved ? out : b,
+    score,
+    moved,
+    trajectories,
+    mergedCells,
+  };
 }
 
 // Map (direction, line, positionAlongSlide) -> flat board index.

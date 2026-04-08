@@ -262,7 +262,7 @@ describe("coaching notes", () => {
     // Must be mistake+ for note to trigger
     const scores = [1600000, 1200000, 1000000, 800000];
     const d = diagnose(b, aiResult(scores), { chosenDir: 3, childBoard: child });
-    expect(d.moveQuality.coachNote).toContain("Monotonicity broken");
+    expect(d.moveQuality.coachNote).toContain("Snake pattern broken");
   });
 
   it("detects space-critical transition", () => {

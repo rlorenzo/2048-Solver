@@ -283,7 +283,7 @@ function generateCoachNote(grade, board, transition, preDiag, postDiag) {
   // Monotonicity broken: was strong/mixed, now broken
   if (preDiag.monotonicity.status !== "broken" && postDiag.monotonicity.status === "broken") {
     const axis = postDiag.monotonicity.direction || "row";
-    return "Monotonicity broken along " + axis + " axis";
+    return "Snake pattern broken along " + axis + " axis";
   }
 
   // Space critical: child board is critical
