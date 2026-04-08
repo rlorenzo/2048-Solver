@@ -3,12 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>2048 Solver</title>
+    <title>Learn to Beat 2048</title>
   </head>
   <body>
     <div id="app">
       <header class="app-header">
-        <h1>2048 Solver</h1>
+        <div class="title-group">
+          <h1><span class="title-accent">Learn to Beat</span> 2048</h1>
+          <a href="strategy.html" class="strategy-link">Strategy Guide</a>
+        </div>
         <div class="scoreboard">
           <div class="score-box">
             <span class="score-label">Score</span>
@@ -26,112 +29,156 @@
       </header>
 
       <main>
-        <div class="board-shell">
-          <div id="board" class="board" aria-label="2048 board"></div>
-          <div
-            id="win-overlay"
-            class="win-overlay hidden"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="win-title"
-            aria-describedby="win-message"
-          >
-            <div class="win-fireworks" aria-hidden="true">
-              <span class="firework firework-a"></span>
-              <span class="firework firework-b"></span>
-              <span class="firework firework-c"></span>
-              <span class="spark spark-a"></span>
-              <span class="spark spark-b"></span>
-              <span class="spark spark-c"></span>
-              <span class="spark spark-d"></span>
-            </div>
-            <div class="win-card">
-              <p class="win-kicker">2048 reached</p>
-              <h2 id="win-title">You made it.</h2>
-              <p id="win-message" class="win-message">
-                Celebrate this run, share the link, or keep pushing for a bigger tile.
-              </p>
-              <div class="win-actions">
-                <button id="btn-win-continue" class="btn">Continue</button>
-                <button id="btn-win-new" class="btn primary">New Game</button>
-                <button id="btn-win-share" class="btn">Share Game</button>
+        <div class="workspace">
+          <!-- Left column: board -->
+          <div class="workspace-board">
+            <div class="board-shell">
+              <div id="board" class="board" aria-label="2048 board"></div>
+              <div
+                id="win-overlay"
+                class="win-overlay hidden"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="win-title"
+                aria-describedby="win-message"
+              >
+                <div class="win-fireworks" aria-hidden="true">
+                  <span class="firework firework-a"></span>
+                  <span class="firework firework-b"></span>
+                  <span class="firework firework-c"></span>
+                  <span class="spark spark-a"></span>
+                  <span class="spark spark-b"></span>
+                  <span class="spark spark-c"></span>
+                  <span class="spark spark-d"></span>
+                </div>
+                <div class="win-card">
+                  <p class="win-kicker">2048 reached</p>
+                  <h2 id="win-title">You made it.</h2>
+                  <p id="win-message" class="win-message">
+                    Celebrate this run, share the link, or keep pushing for a bigger tile.
+                  </p>
+                  <div class="win-actions">
+                    <button id="btn-win-continue" class="btn">Continue</button>
+                    <button id="btn-win-new" class="btn primary">New Game</button>
+                    <button id="btn-win-share" class="btn">Share Game</button>
+                  </div>
+                </div>
               </div>
             </div>
+
+            <div id="status" class="status" aria-live="polite"></div>
+
+            <!-- Mobile: primary actions sit directly below the board -->
+            <div class="primary-actions mobile-only">
+              <button id="btn-undo-m" class="btn" title="Rewind one move (Shift + &#x2190;)">
+                &#x25C0; Undo
+              </button>
+              <button id="btn-redo-m" class="btn" title="Step forward one move (Shift + &#x2192;)">
+                Redo &#x25B6;
+              </button>
+              <button id="btn-hint-m" class="btn" title="Show AI recommendation (H)">Hint</button>
+              <button id="btn-playpause-m" class="btn">AI Play</button>
+              <button id="btn-new-m" class="btn primary" title="Start a new game (N)">New</button>
+              <label class="speed-input speed-input-mobile">
+                <span class="speed-caption-m">Speed:</span>
+                <input id="speed-m" type="range" min="0" max="6" value="3" step="1" />
+                <span id="speed-label-m">4/s</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Right column: coach panel -->
+          <div class="workspace-coach" aria-live="polite">
+            <div id="grade-badge"></div>
+            <div id="score-bars"></div>
+
+            <!-- Desktop: primary actions inside coach panel -->
+            <div class="primary-actions desktop-only">
+              <button id="btn-undo" class="btn" title="Rewind one move (Shift + &#x2190;)">
+                &#x25C0; Undo
+              </button>
+              <button id="btn-redo" class="btn" title="Step forward one move (Shift + &#x2192;)">
+                Redo &#x25B6;
+              </button>
+              <button id="btn-hint" class="btn" title="Show AI recommendation (H)">Hint</button>
+              <button id="btn-playpause" class="btn">AI Play</button>
+              <button id="btn-new" class="btn primary" title="Start a new game (N)">
+                New Game
+              </button>
+            </div>
+
+            <!-- Settings: secondary controls -->
+            <details class="settings-drawer">
+              <summary class="settings-toggle">Settings</summary>
+              <div class="settings-body">
+                <div class="control-row">
+                  <label class="seed-input">
+                    Seed:
+                    <input id="seed" type="text" inputmode="numeric" placeholder="random" />
+                  </label>
+                </div>
+                <div class="control-row">
+                  <button id="btn-seed-replay" class="btn">Replay Seed</button>
+                  <button id="btn-seed-random" class="btn" title="Generate a new random seed">
+                    Randomize
+                  </button>
+                </div>
+                <div class="control-row">
+                  <label class="speed-input">
+                    <span id="speed-caption">AI Speed:</span>
+                    <input id="speed" type="range" min="0" max="6" value="3" step="1" />
+                    <span id="speed-label">4/s</span>
+                  </label>
+                  <label class="depth-input">
+                    AI Depth:
+                    <select id="depth">
+                      <option value="auto" selected>Auto adjust (6-8)</option>
+                      <option value="3">3 (fast)</option>
+                      <option value="4">4</option>
+                      <option value="5">5</option>
+                      <option value="6">6</option>
+                      <option value="7">7</option>
+                      <option value="8">8 (slow)</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="control-row">
+                  <label class="toggle-label">
+                    <input id="always-hint" type="checkbox" />
+                    Always show hints
+                  </label>
+                </div>
+                <div class="control-row">
+                  <button id="btn-share" class="btn">Copy Share Link</button>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
 
-        <div id="status" class="status" aria-live="polite"></div>
-
-        <section class="controls">
-          <div class="control-row">
-            <button id="btn-new" class="btn primary">New Game</button>
-            <label class="seed-input">
-              Seed:
-              <input id="seed" type="text" inputmode="numeric" placeholder="random" />
-            </label>
-            <button id="btn-seed-replay" class="btn">Replay Seed</button>
-            <button id="btn-seed-random" class="btn" title="Generate a new random seed">
-              Randomize
-            </button>
-          </div>
-
-          <div class="control-row">
-            <button id="btn-undo" class="btn" title="Rewind one move (Shift + ←)">◀ Step</button>
-            <button id="btn-redo" class="btn" title="Step forward one move (Shift + →)">
-              Step ▶
-            </button>
-            <button id="btn-playpause" class="btn">AI Play</button>
-            <button id="btn-stop" class="btn">Stop</button>
-          </div>
-
-          <div class="control-row">
-            <label class="speed-input">
-              <span id="speed-caption">AI Speed:</span>
-              <input id="speed" type="range" min="0" max="6" value="3" step="1" />
-              <span id="speed-label">4/s</span>
-            </label>
-            <label class="depth-input">
-              AI Depth:
-              <select id="depth">
-                <option value="auto" selected>Auto (strong)</option>
-                <option value="3">3 (fast)</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-                <option value="7">7 (slow)</option>
-              </select>
-            </label>
-          </div>
-
-          <div class="control-row">
-            <button id="btn-share" class="btn">Copy Share Link</button>
-            <button id="btn-branch-prev" class="btn" title="Previous branch">⎇ Prev</button>
-            <button id="btn-branch-next" class="btn" title="Next branch">⎇ Next</button>
-            <span id="branch-label" class="branch-label"></span>
-          </div>
-        </section>
+        <div id="debrief"></div>
 
         <section class="timeline-wrapper">
           <div class="timeline-header">
             <span>Timeline</span>
             <span id="timeline-position" class="timeline-position">0 / 0</span>
           </div>
+          <div id="inspector"></div>
           <div id="timeline" class="timeline"></div>
           <div class="timeline-legend">
-            <span class="legend-item"><span class="tick tick-up"></span>Up</span>
-            <span class="legend-item"><span class="tick tick-right"></span>Right</span>
-            <span class="legend-item"><span class="tick tick-down"></span>Down</span>
-            <span class="legend-item"><span class="tick tick-left"></span>Left</span>
-            <span class="legend-item"><span class="tick tick-turn"></span>Direction change</span>
-            <span class="legend-item"><span class="tick tick-branch"></span>Branch point</span>
+            <span class="legend-item"><span class="tick tick-grade-best"></span>Perfect</span>
+            <span class="legend-item"><span class="tick tick-grade-good"></span>Good</span>
+            <span class="legend-item"><span class="tick tick-grade-ok"></span>OK</span>
+            <span class="legend-item"><span class="tick tick-grade-mistake"></span>Mistake</span>
+            <span class="legend-item"><span class="tick tick-grade-blunder"></span>Blunder</span>
           </div>
         </section>
       </main>
 
       <footer class="app-footer">
         <p>
-          Arrow keys to play · <kbd>←</kbd>/<kbd>→</kbd> with Shift to scrub timeline ·
-          <kbd>Space</kbd> toggle AI · <kbd>N</kbd> new game
+          Arrow keys to play · <kbd>U</kbd> undo · <kbd>H</kbd> hint · <kbd>Space</kbd> toggle AI ·
+          <kbd>N</kbd> new game
         </p>
       </footer>
     </div>

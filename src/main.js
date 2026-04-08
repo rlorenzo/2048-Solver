@@ -1,17 +1,15 @@
 import "./style.css";
-import {
-  DIR,
-  DIR_NAMES,
-  initialBoard,
-  move as boardMove,
-  spawn,
-  canMove,
-  maxTile,
-} from "./game/board.js";
+import { DIR, initialBoard, move as boardMove, spawn, canMove, maxTile } from "./game/board.js";
 import { mulberry32, randomSeed } from "./game/rng.js";
 import { History } from "./game/history.js";
 import { createBoardRenderer } from "./ui/board.js";
 import { createTimelineRenderer } from "./ui/timeline.js";
+import { createScoreBarsRenderer } from "./ui/score-bars.js";
+import { createHintOverlayRenderer } from "./ui/hint-overlay.js";
+import { createGradeBadgeRenderer } from "./ui/grade-badge.js";
+import { createInspectorRenderer } from "./ui/inspector.js";
+import { createDebriefRenderer } from "./ui/debrief.js";
+import { diagnose } from "./coaching/diagnose.js";
 import { encodeState, decodeState } from "./share/url.js";
 
 // --- DOM handles
@@ -22,42 +20,98 @@ const moveCountEl = document.getElementById("move-count");
 const statusEl = document.getElementById("status");
 const seedInput = document.getElementById("seed");
 const speedInput = document.getElementById("speed");
+const speedInputM = document.getElementById("speed-m");
 const speedCaption = document.getElementById("speed-caption");
 const speedLabel = document.getElementById("speed-label");
+const speedLabelM = document.getElementById("speed-label-m");
 const depthSelect = document.getElementById("depth");
 const timelineEl = document.getElementById("timeline");
 const timelinePositionEl = document.getElementById("timeline-position");
-const branchLabelEl = document.getElementById("branch-label");
 const winOverlayEl = document.getElementById("win-overlay");
+
+const scoreBarsEl = document.getElementById("score-bars");
+const gradeBadgeEl = document.getElementById("grade-badge");
+const inspectorEl = document.getElementById("inspector");
+const debriefEl = document.getElementById("debrief");
+const boardShellEl = boardEl.closest(".board-shell");
 
 const btnNew = document.getElementById("btn-new");
 const btnUndo = document.getElementById("btn-undo");
 const btnRedo = document.getElementById("btn-redo");
+const btnHint = document.getElementById("btn-hint");
 const btnPlayPause = document.getElementById("btn-playpause");
-const btnStop = document.getElementById("btn-stop");
 const btnShare = document.getElementById("btn-share");
-const btnBranchPrev = document.getElementById("btn-branch-prev");
-const btnBranchNext = document.getElementById("btn-branch-next");
+const alwaysHintCheckbox = document.getElementById("always-hint");
 const btnSeedReplay = document.getElementById("btn-seed-replay");
 const btnSeedRandom = document.getElementById("btn-seed-random");
 const btnWinContinue = document.getElementById("btn-win-continue");
 const btnWinNew = document.getElementById("btn-win-new");
 const btnWinShare = document.getElementById("btn-win-share");
 
+// Mobile-specific action buttons (mirrors of desktop buttons)
+const btnUndoM = document.getElementById("btn-undo-m");
+const btnRedoM = document.getElementById("btn-redo-m");
+const btnHintM = document.getElementById("btn-hint-m");
+const btnPlayPauseM = document.getElementById("btn-playpause-m");
+
 // --- Game state
 const boardRenderer = createBoardRenderer(boardEl);
-const timelineRenderer = createTimelineRenderer(timelineEl, (nodeId) => {
-  if (!state.history.jumpTo(nodeId)) return;
-  renderAll();
-  syncURL();
+const timelineRenderer = createTimelineRenderer(
+  timelineEl,
+  (nodeId) => {
+    if (!state.history.jumpTo(nodeId)) return;
+    cancelHint();
+    cancelGrade();
+    syncHintModeForCurrentNode();
+    restoreGradeFromCache();
+    renderAll();
+    syncURL();
+  },
+  (nodeId, triggerEl) => {
+    if (nodeId === null) {
+      inspectorRenderer.hide();
+    } else {
+      showInspectorForNode(nodeId, triggerEl);
+    }
+  },
+);
+const scoreBarsRenderer = createScoreBarsRenderer(scoreBarsEl);
+const hintOverlayRenderer = createHintOverlayRenderer(boardShellEl);
+const gradeBadgeRenderer = createGradeBadgeRenderer(gradeBadgeEl);
+const inspectorRenderer = createInspectorRenderer(inspectorEl);
+const debriefRenderer = createDebriefRenderer(debriefEl, () => {
+  // "Retry this seed" callback — start a new game with the same seed
+  newGame(state.seed);
 });
+
+// Coaching state — ephemeral, never serialized into URLs
+const aiResults = new Map(); // nodeId → { scores, depth, ms }
+const moveGrades = new Map(); // childNodeId → { grade, scoreDelta, bestDir, coachNote }
+const uiState = { hintPending: false, pendingGrades: new Set() };
+// Compute the consecutive trailing best/good streak for a node by walking its
+// root-to-node path.  This is branch-local: rewinding or switching branches
+// always gives the correct streak for that line of play.
+function streakForNode(nodeId) {
+  let streak = 0;
+  let node = state?.history.get(nodeId);
+  while (node?.parent !== null) {
+    const grade = moveGrades.get(node.id);
+    if (!grade || (grade.grade !== "best" && grade.grade !== "good")) break;
+    streak++;
+    node = state.history.get(node.parent);
+  }
+  return streak;
+}
 
 let state = null; // { seed, history }
 let aiRunning = false;
 let aiTimer = null;
-let aiWorker = null;
+let hintWorker = null;
+let gradeWorker = null;
 let nextRequestId = 0; // monotonic per-request ID for worker message routing
 let gameEpoch = 0; // incremented on newGame to invalidate in-flight AI
+let hintEpoch = 0; // per-type epoch for stale hint response detection
+let gradeEpoch = 0; // per-type epoch for stale grade response detection
 let winAcknowledged = false;
 let replayMode = false;
 let lastFocusedBeforeWinOverlay = null;
@@ -77,7 +131,9 @@ function speedMs() {
 }
 
 function updateSpeedLabel() {
-  speedLabel.textContent = `${SPEEDS[speedIndex()]}/s`;
+  const label = `${SPEEDS[speedIndex()]}/s`;
+  speedLabel.textContent = label;
+  if (speedLabelM) speedLabelM.textContent = label;
 }
 
 function setStatusMessage(text, kind = "") {
@@ -179,7 +235,9 @@ function scheduleShareButtonFeedbackReset() {
 }
 
 function updatePlayButtonLabel() {
-  btnPlayPause.textContent = aiRunning ? "Pause" : replayMode ? "Play" : "AI Play";
+  const label = aiRunning ? "Pause AI Play" : replayMode ? "Play" : "AI Play";
+  btnPlayPause.textContent = label;
+  if (btnPlayPauseM) btnPlayPauseM.textContent = label;
 }
 
 function updateSpeedCaption() {
@@ -221,7 +279,14 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
   // resolve pending promises with a sentinel so awaiting code completes
   // (the epoch check in aiStep will discard the result).
   gameEpoch++;
+  hintEpoch++;
+  gradeEpoch++;
   invalidatePendingAIRequests();
+  // Terminate the grade worker across games — it will be lazily respawned.
+  if (gradeWorker) {
+    gradeWorker.terminate();
+    gradeWorker = null;
+  }
   const actualSeed = seed >>> 0;
   const rng = mulberry32(actualSeed);
   const { board } = initialBoard(rng);
@@ -250,6 +315,10 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
     }
   }
 
+  aiResults.clear();
+  moveGrades.clear();
+  clearCoachingUI();
+
   boardRenderer.reset();
   timelineRenderer.reset();
   renderAll();
@@ -264,6 +333,19 @@ function applyMove(dir, opts = {}) {
   const cur = state.history.current();
   const result = boardMove(cur.board, dir);
   if (!result.moved) return false;
+
+  const isHumanMove = !opts.silent && !aiRunning;
+
+  // On human moves, clear coaching overlays before applying the move.
+  // Don't cancel in-flight grades — let them complete so fast play still
+  // records grades for earlier moves (badge display is cursor-gated).
+  if (isHumanMove) {
+    cancelHint();
+    gradeBadgeRenderer.hide();
+  }
+
+  // Capture pre-move board for grading before mutation
+  const preMoveBoard = isHumanMove ? cur.board.slice() : null;
 
   // Derive an RNG seeded from (seed, move-path) so each branch is reproducible.
   // Accumulate the hash from the parent's stored hash rather than rewalking
@@ -285,6 +367,15 @@ function applyMove(dir, opts = {}) {
     renderAll();
     syncURL();
   }
+
+  // Fire grade request for human moves (async, don't block)
+  if (isHumanMove) {
+    void gradeHumanMove(preMoveBoard, dir, childId, newBoard, cur.id);
+    if (alwaysHintCheckbox?.checked) {
+      void requestHint();
+    }
+  }
+
   return true;
 }
 
@@ -354,23 +445,18 @@ function renderAll() {
     hideWinOverlay();
   }
 
-  // Branch label
-  const siblings = state.history.siblings();
-  if (siblings.length > 1) {
-    const idx = siblings.indexOf(state.history.cursor);
-    const dirs = siblings.map((id) => DIR_NAMES[state.history.get(id).dir] ?? "?");
-    branchLabelEl.textContent = `Branch ${idx + 1}/${siblings.length}: [${dirs.join(" ")}]`;
-  } else {
-    branchLabelEl.textContent = "";
-  }
-
   // Buttons
-  btnUndo.disabled = cur.parent === null;
-  btnRedo.disabled = cur.children.size === 0;
-  btnBranchPrev.disabled = siblings.length < 2;
-  btnBranchNext.disabled = siblings.length < 2;
+  const undoDisabled = cur.parent === null;
+  const redoDisabled = cur.children.size === 0;
+  btnUndo.disabled = undoDisabled;
+  btnRedo.disabled = redoDisabled;
+  if (btnUndoM) btnUndoM.disabled = undoDisabled;
+  if (btnRedoM) btnRedoM.disabled = redoDisabled;
 
-  timelineRenderer.render(state.history);
+  timelineRenderer.render(state.history, moveGrades);
+
+  // Show debrief on game over (no moves possible), hide otherwise
+  checkDebrief();
 }
 
 // --- URL sync
@@ -437,58 +523,362 @@ function invalidatePendingAIRequests() {
   pendingAI.clear();
 }
 
-function failPendingAIRequests(error) {
-  for (const pending of pendingAI.values()) {
+function failPendingAIRequests(error, workerType = null) {
+  for (const [id, pending] of pendingAI.entries()) {
+    if (workerType && pending.workerType !== workerType) continue;
     pending.reject(error);
+    pendingAI.delete(id);
   }
-  pendingAI.clear();
+  if (!workerType) pendingAI.clear();
 }
 
-function handleAIWorkerFailure(message) {
-  failPendingAIRequests(new Error(message));
-  if (aiWorker) {
-    aiWorker.terminate();
-    aiWorker = null;
+function handleWorkerFailure(message, workerType) {
+  failPendingAIRequests(new Error(message), workerType);
+  if (workerType === "grade") {
+    if (gradeWorker) {
+      gradeWorker.terminate();
+      gradeWorker = null;
+    }
+  } else {
+    if (hintWorker) {
+      hintWorker.terminate();
+      hintWorker = null;
+    }
+    setStatusMessage(message, "lose");
+    stopAI();
   }
-  setStatusMessage(message, "lose");
-  stopAI();
 }
 
-function ensureWorker() {
-  if (aiWorker) return aiWorker;
-  aiWorker = new Worker(new URL("./ai/worker.js", import.meta.url), { type: "module" });
-  aiWorker.addEventListener("message", (e) => {
-    const pending = pendingAI.get(e.data.id);
+function createWorker(workerType) {
+  const worker = new Worker(new URL("./ai/worker.js", import.meta.url), { type: "module" });
+  worker.addEventListener("message", (e) => {
+    const data = e.data;
+    const pending = pendingAI.get(data.id);
     if (!pending) return; // stale / invalidated request
-    pendingAI.delete(e.data.id);
-    pending.resolve(e.data);
+    pendingAI.delete(data.id);
+    // Stale-response guard: resolve with sentinel when epoch has moved on
+    if (data.type === "hint" && data.epoch !== hintEpoch) {
+      pending.resolve({ stale: true });
+      return;
+    }
+    if (data.type === "grade" && data.epoch !== gradeEpoch) {
+      pending.resolve({ stale: true });
+      return;
+    }
+    pending.resolve(data);
   });
-  aiWorker.addEventListener("error", (e) => {
+  worker.addEventListener("error", (e) => {
     const detail = e?.message ? `: ${e.message}` : ".";
-    handleAIWorkerFailure(`AI worker failed${detail}`);
+    handleWorkerFailure(`AI worker failed${detail}`, workerType);
   });
-  aiWorker.addEventListener("messageerror", () => {
-    handleAIWorkerFailure("AI worker sent an unreadable response.");
+  worker.addEventListener("messageerror", () => {
+    handleWorkerFailure("AI worker sent an unreadable response.", workerType);
   });
-  return aiWorker;
+  return worker;
+}
+
+function ensureHintWorker() {
+  if (hintWorker) return hintWorker;
+  hintWorker = createWorker("hint");
+  return hintWorker;
+}
+
+function ensureGradeWorker() {
+  if (gradeWorker) return gradeWorker;
+  gradeWorker = createWorker("grade");
+  return gradeWorker;
 }
 
 function requestAIMove() {
+  hintEpoch++;
+  const currentEpoch = hintEpoch;
   return new Promise((resolve, reject) => {
-    const worker = ensureWorker();
+    const worker = ensureHintWorker();
     const id = ++nextRequestId;
     const cur = state.history.current();
     const depthVal = depthSelect.value;
     const depth = depthVal === "auto" ? "auto" : parseInt(depthVal, 10);
 
-    pendingAI.set(id, { resolve, reject });
+    pendingAI.set(id, { resolve, reject, workerType: "hint" });
     try {
-      worker.postMessage({ id, board: cur.board.slice(), depth });
+      worker.postMessage({
+        id,
+        board: cur.board.slice(),
+        depth,
+        type: "hint",
+        epoch: currentEpoch,
+      });
     } catch (error) {
       pendingAI.delete(id);
       reject(error instanceof Error ? error : new Error(String(error)));
     }
   });
+}
+
+function requestGrade(board, depth = 3) {
+  // Don't bump gradeEpoch here — allow concurrent grade requests so fast
+  // play doesn't discard earlier grades. Epoch is still bumped by
+  // cancelGrade() and newGame() for game-level invalidation.
+  const currentEpoch = gradeEpoch;
+  return new Promise((resolve, reject) => {
+    const worker = ensureGradeWorker();
+    const id = ++nextRequestId;
+
+    pendingAI.set(id, { resolve, reject, workerType: "grade" });
+    try {
+      worker.postMessage({ id, board: board.slice(), depth, type: "grade", epoch: currentEpoch });
+    } catch (error) {
+      pendingAI.delete(id);
+      reject(error instanceof Error ? error : new Error(String(error)));
+    }
+  });
+}
+
+// --- Hint flow
+
+function cancelHint() {
+  if (uiState.hintPending) {
+    hintEpoch++;
+    uiState.hintPending = false;
+    btnHint.disabled = false;
+    if (btnHintM) btnHintM.disabled = false;
+  }
+  hintOverlayRenderer.hide();
+  if (!alwaysHintCheckbox?.checked) {
+    scoreBarsRenderer.hide();
+  }
+}
+
+function cancelGrade() {
+  if (uiState.pendingGrades.size > 0) {
+    gradeEpoch++;
+    uiState.pendingGrades.clear();
+  }
+  gradeBadgeRenderer.hide();
+}
+
+function clearCoachingUI() {
+  cancelHint();
+  cancelGrade();
+  scoreBarsRenderer.reset();
+  gradeBadgeRenderer.reset();
+  inspectorRenderer.reset();
+  debriefRenderer.reset();
+}
+
+async function requestHint() {
+  if (uiState.hintPending) return; // debounce
+  if (aiRunning) return;
+  if (!state) return;
+  const cur = state.history.current();
+  if (!canMove(cur.board)) return;
+
+  // Check cache first
+  const nodeId = state.history.cursor;
+  const cached = aiResults.get(nodeId);
+  if (cached) {
+    const bestDir = cached.scores.indexOf(Math.max(...cached.scores));
+    scoreBarsRenderer.render(cached);
+    hintOverlayRenderer.show(bestDir);
+    return;
+  }
+
+  uiState.hintPending = true;
+  btnHint.disabled = true;
+  if (btnHintM) btnHintM.disabled = true;
+  scoreBarsRenderer.showLoading();
+
+  const epoch = gameEpoch;
+  let result;
+  try {
+    result = await requestAIMove();
+  } catch (error) {
+    uiState.hintPending = false;
+    btnHint.disabled = false;
+    if (btnHintM) btnHintM.disabled = false;
+    scoreBarsRenderer.showError();
+    console.error("Hint request failed:", error);
+    return;
+  }
+
+  // Stale check — game was reset or navigation happened
+  if (gameEpoch !== epoch || !uiState.hintPending) {
+    return;
+  }
+
+  uiState.hintPending = false;
+  btnHint.disabled = false;
+  if (btnHintM) btnHintM.disabled = false;
+
+  if (result?.error) {
+    scoreBarsRenderer.showError();
+    console.error("Hint worker error:", result.error);
+    return;
+  }
+
+  // Store in cache
+  const currentNodeId = state.history.cursor;
+  aiResults.set(currentNodeId, {
+    scores: result.scores,
+    depth: result.depth,
+    ms: result.ms,
+  });
+
+  scoreBarsRenderer.render(result);
+  const bestDir = result.scores.indexOf(Math.max(...result.scores));
+  if (bestDir >= 0 && bestDir <= 3) {
+    hintOverlayRenderer.show(bestDir);
+  }
+}
+
+// Apply a computed grade result: store in moveGrades, update streak, show badge.
+function applyGradeResult(childNodeId, mq) {
+  moveGrades.set(childNodeId, {
+    grade: mq.grade,
+    scoreDelta: mq.scoreDelta,
+    bestDir: mq.bestDir,
+    coachNote: mq.coachNote,
+  });
+
+  const gradeStreak = streakForNode(childNodeId);
+
+  if (state.history.cursor === childNodeId) {
+    gradeBadgeRenderer.show(mq);
+    gradeBadgeRenderer.updateStreak(gradeStreak);
+  }
+
+  timelineRenderer.render(state.history, moveGrades);
+}
+
+// Grade a human move: use cached hint result if available (same depth the hint
+// used), otherwise fire a low-depth evaluation. This ensures that following a
+// hint always grades as "Perfect" rather than disagreeing due to depth mismatch.
+async function gradeHumanMove(preMoveBoard, chosenDir, childNodeId, childBoard, sourceNodeId) {
+  const cached = aiResults.get(sourceNodeId);
+  if (cached) {
+    // Use the higher-depth hint result directly — no worker round-trip needed
+    const aiResult = { scores: cached.scores, depth: cached.depth, ms: cached.ms };
+    const transition = { chosenDir, childBoard };
+    const diagnosis = diagnose(preMoveBoard, aiResult, transition);
+    const mq = diagnosis.moveQuality;
+    applyGradeResult(childNodeId, mq);
+    return;
+  }
+
+  uiState.pendingGrades.add(childNodeId);
+  gradeBadgeRenderer.showLoading();
+
+  const epoch = gameEpoch;
+  let result;
+  try {
+    const depthVal = depthSelect.value;
+    const gradeDepth = depthVal === "auto" ? "auto" : parseInt(depthVal, 10);
+    result = await requestGrade(preMoveBoard, gradeDepth);
+  } catch {
+    // Worker error — don't show badge, don't break streak (optimistic)
+    uiState.pendingGrades.delete(childNodeId);
+    gradeBadgeRenderer.hide();
+    return;
+  }
+
+  // Stale check — game reset or grade cancelled
+  if (gameEpoch !== epoch || !uiState.pendingGrades.has(childNodeId)) {
+    return;
+  }
+  uiState.pendingGrades.delete(childNodeId);
+
+  if (result?.error) {
+    gradeBadgeRenderer.hide();
+    console.error("Grade worker error:", result.error);
+    return;
+  }
+
+  const aiResult = { scores: result.scores, depth: result.depth, ms: result.ms };
+  const transition = { chosenDir, childBoard };
+  const diagnosis = diagnose(preMoveBoard, aiResult, transition);
+  const mq = diagnosis.moveQuality;
+  applyGradeResult(childNodeId, mq);
+}
+
+// Restore grade badge from cache for a given node, or hide
+function restoreGradeFromCache() {
+  cancelGrade();
+  const cached = moveGrades.get(state.history.cursor);
+  if (cached) {
+    gradeBadgeRenderer.show(cached);
+    gradeBadgeRenderer.updateStreak(streakForNode(state.history.cursor));
+  } else {
+    gradeBadgeRenderer.hide();
+  }
+}
+
+// Restore score bars from cache if available for the current node, otherwise hide
+function restoreScoreBarsFromCache() {
+  const cached = aiResults.get(state.history.cursor);
+  if (cached) {
+    scoreBarsRenderer.render(cached);
+  } else {
+    scoreBarsRenderer.hide();
+  }
+  hintOverlayRenderer.hide();
+}
+
+// Restore from cache and, if "Always show hints" is on, ensure hint UI
+// is fully shown (score bars + overlay arrow) for the current node.
+function syncHintModeForCurrentNode() {
+  restoreScoreBarsFromCache();
+  if (alwaysHintCheckbox?.checked && !aiRunning) {
+    void requestHint();
+  }
+}
+
+// --- Inspector
+
+function showInspectorForNode(nodeId, triggerEl) {
+  const node = state.history.get(nodeId);
+  if (!node) return;
+  const grade = moveGrades.get(nodeId) || null;
+  const aiResult = node.parent === null ? null : aiResults.get(node.parent) || null;
+  inspectorRenderer.show(nodeId, node, grade, aiResult, triggerEl);
+}
+
+// --- Debrief
+
+function checkDebrief() {
+  const cur = state.history.current();
+  if (!canMove(cur.board) && !aiRunning) {
+    const totalMoves = state.history.depth();
+    // Only include grades from the root-to-cursor path, not abandoned branches
+    const path = state.history.pathToCursor();
+    const pathGrades = [];
+    for (const node of path) {
+      const grade = moveGrades.get(node.id);
+      if (grade) pathGrades.push(grade);
+    }
+    debriefRenderer.show(pathGrades, totalMoves);
+  } else {
+    debriefRenderer.hide();
+  }
+}
+
+// --- Branch comparison
+
+// Initialize compare board thumbnails with 16 cells each
+const compareBoardIds = [
+  "compare-board-a3",
+  "compare-board-a5",
+  "compare-board-b3",
+  "compare-board-b5",
+];
+for (const id of compareBoardIds) {
+  const el = document.getElementById(id);
+  if (el) {
+    for (let i = 0; i < 16; i++) {
+      const cell = document.createElement("div");
+      cell.className = "inspector-cell";
+      el.appendChild(cell);
+    }
+  }
 }
 
 async function aiStep() {
@@ -519,11 +909,21 @@ async function aiStep() {
     return;
   }
   if (gameEpoch !== epoch) return; // stale — game was reset
+  if (result?.stale) return; // stale epoch — retry on next loop iteration
   if (result?.error) {
     stopAI();
     setStatusMessage(result.error, "lose");
     return;
   }
+  // Cache AI result and update score bars during autoplay
+  const sourceNodeId = state.history.cursor;
+  aiResults.set(sourceNodeId, {
+    scores: result.scores,
+    depth: result.depth,
+    ms: result.ms,
+  });
+  scoreBarsRenderer.render(result);
+
   const { dir } = result;
   if (!Number.isInteger(dir) || dir < 0 || dir > 3) {
     stopAI();
@@ -536,6 +936,14 @@ async function aiStep() {
 function startAI() {
   if (isWinOverlayOpen()) return;
   if (aiRunning) return;
+  cancelHint();
+  cancelGrade();
+  gradeBadgeRenderer.hide();
+  // Terminate grade worker during autoplay — not needed since grading is skipped
+  if (gradeWorker) {
+    gradeWorker.terminate();
+    gradeWorker = null;
+  }
   aiRunning = true;
   updatePlayButtonLabel();
   const loop = async () => {
@@ -551,6 +959,7 @@ function stopAI() {
   // End the current AI epoch so any in-flight worker response from a prior
   // run is ignored if the user restarts AI before it arrives.
   gameEpoch++;
+  hintEpoch++;
   invalidatePendingAIRequests();
   aiRunning = false;
   updatePlayButtonLabel();
@@ -594,11 +1003,15 @@ window.addEventListener("keydown", (e) => {
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
     if (aiRunning) stopAI();
+    cancelHint();
+    cancelGrade();
     if (k === "ArrowLeft") {
       state.history.stepBack();
     } else {
       state.history.stepForward();
     }
+    syncHintModeForCurrentNode();
+    restoreGradeFromCache();
     renderAll();
     syncURL();
     return;
@@ -617,8 +1030,11 @@ window.addEventListener("keydown", (e) => {
   }
   if (k === " ") {
     e.preventDefault();
-    if (aiRunning) stopAI();
-    else startAI();
+    toggleAI();
+  } else if (k === "u" || k === "U") {
+    handleUndo();
+  } else if (k === "h" || k === "H") {
+    void requestHint();
   } else if (k === "n" || k === "N") {
     newGame(randomSeed());
   }
@@ -667,6 +1083,22 @@ boardEl.addEventListener(
 btnNew.addEventListener("click", () => {
   newGame(randomizeSeedInput());
 });
+const btnNewM = document.getElementById("btn-new-m");
+if (btnNewM) {
+  btnNewM.addEventListener("click", () => {
+    newGame(randomizeSeedInput());
+  });
+}
+
+if (alwaysHintCheckbox) {
+  alwaysHintCheckbox.addEventListener("change", () => {
+    if (!alwaysHintCheckbox.checked) {
+      cancelHint();
+      return;
+    }
+    if (!aiRunning) syncHintModeForCurrentNode();
+  });
+}
 
 btnSeedRandom.addEventListener("click", () => {
   randomizeSeedInput();
@@ -690,23 +1122,38 @@ seedInput.addEventListener("keydown", (e) => {
   btnSeedReplay.click();
 });
 
-btnUndo.addEventListener("click", () => {
+function handleUndo() {
   stopAI();
+  cancelHint();
+  cancelGrade();
   state.history.stepBack();
+  syncHintModeForCurrentNode();
+  restoreGradeFromCache();
   renderAll();
   syncURL();
-});
-btnRedo.addEventListener("click", () => {
-  state.history.stepForward();
-  renderAll();
-  syncURL();
-});
+}
 
-btnPlayPause.addEventListener("click", () => {
+function handleRedo() {
+  cancelHint();
+  cancelGrade();
+  state.history.stepForward();
+  syncHintModeForCurrentNode();
+  restoreGradeFromCache();
+  renderAll();
+  syncURL();
+}
+
+function toggleAI() {
   if (aiRunning) stopAI();
   else startAI();
-});
-btnStop.addEventListener("click", stopAI);
+}
+
+btnUndo.addEventListener("click", handleUndo);
+btnRedo.addEventListener("click", handleRedo);
+
+btnHint.addEventListener("click", () => void requestHint());
+
+btnPlayPause.addEventListener("click", toggleAI);
 
 btnShare.addEventListener("click", copyShareLink);
 btnWinShare.addEventListener("click", copyShareLink);
@@ -718,20 +1165,30 @@ btnWinNew.addEventListener("click", () => {
   newGame(randomizeSeedInput());
 });
 
-btnBranchPrev.addEventListener("click", () => cycleBranch(-1));
-btnBranchNext.addEventListener("click", () => cycleBranch(1));
-
-function cycleBranch(delta) {
-  const sibs = state.history.siblings();
-  if (sibs.length < 2) return;
-  const idx = sibs.indexOf(state.history.cursor);
-  const next = sibs[(idx + delta + sibs.length) % sibs.length];
-  if (!state.history.jumpTo(next)) return;
-  renderAll();
-  syncURL();
+speedInput.addEventListener("input", () => {
+  if (speedInputM) speedInputM.value = speedInput.value;
+  updateSpeedLabel();
+});
+if (speedInputM) {
+  speedInputM.addEventListener("input", () => {
+    speedInput.value = speedInputM.value;
+    updateSpeedLabel();
+  });
 }
 
-speedInput.addEventListener("input", updateSpeedLabel);
+// --- Mobile action buttons (mirror desktop handlers)
+if (btnUndoM) btnUndoM.addEventListener("click", handleUndo);
+if (btnRedoM) btnRedoM.addEventListener("click", handleRedo);
+if (btnHintM) btnHintM.addEventListener("click", () => void requestHint());
+if (btnPlayPauseM) btnPlayPauseM.addEventListener("click", toggleAI);
+
+// Return focus to the document after any button click so arrow keys
+// immediately work for game input instead of being captured by the button.
+document.addEventListener("click", (e) => {
+  if (e.target instanceof HTMLButtonElement) {
+    e.target.blur();
+  }
+});
 
 // --- Init
 

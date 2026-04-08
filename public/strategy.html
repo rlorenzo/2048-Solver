@@ -1,0 +1,634 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>2048 Strategy Guide — Learn to Beat 2048</title>
+    <style>
+      :root {
+        --bg: #faf8ef;
+        --text: #776e65;
+        --accent: #8f7a66;
+        --heading: #6d6050;
+        --card-bg: #f5f0e8;
+        --border: #e0d5c2;
+        --green: #2d8a4e;
+        --yellow: #c4a832;
+        --orange: #d48a3a;
+        --red: #c44040;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        line-height: 1.6;
+        padding: 24px 16px;
+        max-width: 720px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 28px;
+        color: var(--heading);
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        font-size: 14px;
+        color: var(--accent);
+        margin-bottom: 32px;
+      }
+
+      h2 {
+        font-size: 20px;
+        color: var(--heading);
+        margin-top: 36px;
+        margin-bottom: 12px;
+        padding-bottom: 6px;
+        border-bottom: 2px solid var(--border);
+      }
+
+      h3 {
+        font-size: 16px;
+        color: var(--heading);
+        margin-top: 20px;
+        margin-bottom: 8px;
+      }
+
+      p {
+        margin-bottom: 12px;
+      }
+
+      .tip {
+        background: var(--card-bg);
+        border-left: 4px solid var(--accent);
+        padding: 12px 16px;
+        margin: 16px 0;
+        border-radius: 0 6px 6px 0;
+      }
+
+      .tip strong {
+        color: var(--heading);
+      }
+
+      .tip.tip-warning {
+        border-left-color: var(--orange);
+      }
+
+      .tip.tip-success {
+        border-left-color: var(--green);
+      }
+
+      .grade-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 14px;
+      }
+
+      .grade-table th,
+      .grade-table td {
+        padding: 8px 12px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+      }
+
+      .grade-table th {
+        color: var(--heading);
+        font-weight: 600;
+      }
+
+      .grade-perfect {
+        color: var(--green);
+        font-weight: 600;
+      }
+      .grade-good {
+        color: var(--green);
+      }
+      .grade-ok {
+        color: var(--yellow);
+      }
+      .grade-mistake {
+        color: var(--orange);
+      }
+      .grade-blunder {
+        color: var(--red);
+      }
+
+      .priority-list {
+        list-style: none;
+        margin: 16px 0;
+      }
+
+      .priority-list li {
+        padding: 8px 0 8px 28px;
+        position: relative;
+      }
+
+      .priority-list li::before {
+        content: attr(data-num);
+        position: absolute;
+        left: 0;
+        font-weight: 700;
+        color: var(--accent);
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-top: 32px;
+        margin-bottom: 16px;
+        color: var(--accent);
+        font-weight: 600;
+      }
+
+      .snake-diagram {
+        display: block;
+        margin: 20px auto;
+        max-width: 320px;
+        width: 100%;
+        height: auto;
+      }
+
+      .diagram-caption {
+        text-align: center;
+        font-size: 13px;
+        color: var(--accent);
+        margin-top: -8px;
+        margin-bottom: 16px;
+      }
+
+      footer {
+        margin-top: 40px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+        font-size: 12px;
+        color: #a09080;
+      }
+    </style>
+  </head>
+  <body>
+    <a href="./" class="back-link">&larr; Back to game</a>
+
+    <h1>Strategy Guide</h1>
+    <p class="subtitle">
+      Learn the concepts the AI uses to evaluate your moves — and how to apply them yourself.
+    </p>
+
+    <!-- ============================================================ -->
+    <h2>Rule #1: Hold the Corner</h2>
+
+    <p>
+      The single most important rule in 2048:
+      <strong>pick a corner for your highest tile and never let it leave.</strong> The bottom-left
+      or bottom-right corners are most common, but any corner works.
+    </p>
+    <p>
+      When your big tile drifts away from its corner, smaller tiles get trapped behind it and the
+      board spirals into chaos. Most game-overs start with a lost corner.
+    </p>
+    <div class="tip">
+      <strong>If you see "Corner lost"</strong> in the coaching notes, your highest tile just left
+      its corner. Undo immediately and try a different direction.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Rule #2: The 3-Direction Strategy</h2>
+
+    <p>
+      Once you've picked a corner, <strong>only use three directions.</strong>
+      The fourth direction is the one that would push your big tile out of its corner.
+    </p>
+    <p>For example, if your big tile is in the <strong>bottom-left corner</strong>:</p>
+    <ul style="margin: 8px 0 8px 20px">
+      <li><strong>Primary:</strong> Down and Left (push tiles toward the corner)</li>
+      <li><strong>Secondary:</strong> Right (slides tiles along the bottom row)</li>
+      <li><strong>Avoid:</strong> Up (pulls the big tile away from the corner)</li>
+    </ul>
+    <p>
+      The forbidden direction depends on your corner. If you pick a
+      <strong>top corner</strong>, Down becomes forbidden. The rule is simple:
+      <strong>never move away from your anchor wall.</strong>
+    </p>
+    <div class="tip tip-warning">
+      <strong>The forbidden direction</strong> should only be used as a last resort — when no other
+      move is possible. The AI will grade it as a Mistake or Blunder in most situations.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Rule #3: The Snake Pattern</h2>
+
+    <p>
+      Arrange your tiles in a winding <strong>snake</strong> (or zigzag) pattern, with values
+      decreasing as you follow the path. This keeps high tiles anchored in the corner and creates
+      natural merge chains.
+    </p>
+
+    <!-- Snake Pattern SVG Diagram — realistic mid-game board -->
+    <svg
+      class="snake-diagram"
+      viewBox="0 0 340 340"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="Snake pattern diagram: a 4x4 board with 256 in the bottom-left corner, tiles decreasing along a zigzag path: 256, 128, 64, 32 on the bottom row left to right, then 16, 8, 4, 2 on the row above right to left, with empty cells at the top for maneuvering."
+    >
+      <defs>
+        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+          <polygon points="0 0, 8 3, 0 6" fill="#776e65" opacity="0.7" />
+        </marker>
+      </defs>
+
+      <!-- Board background -->
+      <rect width="340" height="340" rx="10" fill="#bbada0" />
+
+      <!-- Empty cell backgrounds (all 16) -->
+      <rect x="10" y="10" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="90" y="10" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="170" y="10" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="250" y="10" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="10" y="90" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="90" y="90" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="170" y="90" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="250" y="90" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="10" y="170" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="90" y="170" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="170" y="170" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="250" y="170" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="10" y="250" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="90" y="250" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="170" y="250" width="72" height="72" rx="5" fill="#cdc1b4" />
+      <rect x="250" y="250" width="72" height="72" rx="5" fill="#cdc1b4" />
+
+      <!-- Row 4 (bottom): 256 → 128 → 64 → 32 -->
+      <rect x="10" y="250" width="72" height="72" rx="5" fill="#f9f683" />
+      <text
+        x="46"
+        y="296"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="24"
+        font-weight="700"
+        fill="#776e65"
+      >
+        256
+      </text>
+
+      <rect x="90" y="250" width="72" height="72" rx="5" fill="#f2b179" />
+      <text
+        x="126"
+        y="296"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="24"
+        font-weight="700"
+        fill="#f9f6f2"
+      >
+        128
+      </text>
+
+      <rect x="170" y="250" width="72" height="72" rx="5" fill="#f59563" />
+      <text
+        x="206"
+        y="296"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="26"
+        font-weight="700"
+        fill="#f9f6f2"
+      >
+        64
+      </text>
+
+      <rect x="250" y="250" width="72" height="72" rx="5" fill="#f67c5f" />
+      <text
+        x="286"
+        y="296"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="26"
+        font-weight="700"
+        fill="#f9f6f2"
+      >
+        32
+      </text>
+
+      <!-- Row 3: 32 → 16 ← 8 ← 4 (snake reverses right-to-left) -->
+      <rect x="250" y="170" width="72" height="72" rx="5" fill="#eee4da" />
+      <text
+        x="286"
+        y="216"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="26"
+        font-weight="700"
+        fill="#776e65"
+      >
+        16
+      </text>
+
+      <rect x="170" y="170" width="72" height="72" rx="5" fill="#ede0c8" />
+      <text
+        x="206"
+        y="216"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="28"
+        font-weight="700"
+        fill="#776e65"
+      >
+        8
+      </text>
+
+      <rect x="90" y="170" width="72" height="72" rx="5" fill="#ede0c8" />
+      <text
+        x="126"
+        y="216"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="28"
+        font-weight="700"
+        fill="#776e65"
+      >
+        4
+      </text>
+
+      <rect x="10" y="170" width="72" height="72" rx="5" fill="#ede0c8" />
+      <text
+        x="46"
+        y="216"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="28"
+        font-weight="700"
+        fill="#776e65"
+      >
+        2
+      </text>
+
+      <!-- Row 2: empty except a small tile -->
+      <rect x="10" y="90" width="72" height="72" rx="5" fill="#eee4da" />
+      <text
+        x="46"
+        y="136"
+        text-anchor="middle"
+        font-family="system-ui, sans-serif"
+        font-size="28"
+        font-weight="700"
+        fill="#776e65"
+      >
+        2
+      </text>
+
+      <!-- Snake arrow path: traces the zigzag through occupied tiles -->
+      <path
+        d="M 46,272 L 126,272 L 206,272 L 286,272 L 286,208 L 206,208 L 126,208 L 46,208 L 46,128"
+        fill="none"
+        stroke="#776e65"
+        stroke-width="2.5"
+        stroke-dasharray="6,4"
+        marker-end="url(#arrowhead)"
+        opacity="0.5"
+      />
+    </svg>
+    <p class="diagram-caption">
+      A mid-game snake: 256 anchored in the bottom-left, values decrease along the zigzag path.
+      Empty cells at the top give room to maneuver.
+    </p>
+
+    <p>
+      The snake path flows from the corner along the bottom row (left to right), then reverses on
+      the row above (right to left), and continues zigzagging upward. Each tile in the chain is half
+      the value of the previous one.
+    </p>
+    <div class="tip tip-success">
+      <strong>Why it works:</strong> The snake creates a natural merge chain. When you add a small
+      tile at the end, it merges up the chain like a cascade. Two 4s make an 8, the 8 merges with
+      the next 8, and so on.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Rule #4: Keep Space Open</h2>
+
+    <p>
+      Empty cells are your lifeline. More empty cells mean more options and more room to recover
+      from mistakes. The AI heavily penalizes boards with few empty cells.
+    </p>
+    <div class="tip">
+      <strong>Rule of thumb:</strong> If you have 3 or fewer empty cells, you are in danger.
+      Prioritize moves that free up space, even if they aren't the "perfect" merge.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Rule #5: Build Merge Chains</h2>
+
+    <p>
+      A merge is when two tiles of the same value combine. The AI values merges more than anything
+      else — a single move that triggers 3-4 merges is far stronger than one that triggers just 1.
+    </p>
+    <div class="tip">
+      <strong>Look for:</strong> Sequences of equal tiles that will collapse in one move. A row of
+      4-4-8-8 can merge into 8-16 in one move — two merges at once.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Watch Out: The Locked Row Trap</h2>
+
+    <p>
+      One of the most common ways to lose your corner is the <strong>"locked row" trap</strong>.
+      This happens when your anchor row (the row with your highest tile) is completely full with no
+      possible merges. You can't move along that row, so the only option is to move in the forbidden
+      direction — which pulls your big tile out of the corner.
+    </p>
+    <div class="tip tip-warning">
+      <strong>How to avoid it:</strong> Keep at least one empty cell in your anchor row, or make
+      sure adjacent tiles can merge. If you see the row filling up, merge tiles in that row before
+      it locks.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Priority Order</h2>
+
+    <p>When factors conflict, use this priority:</p>
+    <ol class="priority-list">
+      <li data-num="1.">
+        <strong>Hold the corner.</strong> Never move your highest tile out of its corner unless
+        there is truly no alternative.
+      </li>
+      <li data-num="2.">
+        <strong>Protect your space.</strong> Don't let empty cells drop below 3. Accept a suboptimal
+        merge to keep room.
+      </li>
+      <li data-num="3.">
+        <strong>Maintain the snake.</strong> Tiles should flow in a zigzag toward your anchor
+        corner, not scatter randomly.
+      </li>
+      <li data-num="4.">
+        <strong>Look for multi-merges.</strong> A move that creates 2-3 merges beats a move that
+        creates 1, when it doesn't violate the rules above.
+      </li>
+    </ol>
+
+    <!-- ============================================================ -->
+    <h2>The Feedback Loop: How to Practice</h2>
+
+    <p>
+      The game has tools designed to help you build intuition through practice, not just
+      memorization:
+    </p>
+
+    <h3>1. Play a move, then check</h3>
+    <p>
+      Make your move based on instinct. Look at the grade you received. If it's OK, Mistake, or
+      Blunder, read the coaching note to understand why.
+    </p>
+
+    <h3>2. Undo and try again</h3>
+    <p>
+      Press <strong>U</strong> (or the Undo button) to take back the move. Now try the direction the
+      AI suggested. Watch how the board changes differently. Over time, you'll start seeing why
+      certain directions are better.
+    </p>
+    <div class="tip tip-success">
+      <strong>Look at the space, not just the merge.</strong> When you undo and follow the AI's
+      hint, don't just look at the next move — look at the space it creates. Usually, the AI chooses
+      a move that keeps the snake intact even if it doesn't result in a big merge immediately.
+    </div>
+
+    <h3>3. Use hints to preview</h3>
+    <p>
+      Press <strong>H</strong> (or enable "Always show hints" in Settings) to see how the AI rates
+      each direction before you move. Compare its recommendation to your instinct. When they
+      disagree, that's where learning happens.
+    </p>
+
+    <h3>4. Watch the AI play</h3>
+    <p>
+      Press <strong>Space</strong> to let the AI play. Watch the snake pattern emerge naturally.
+      Notice which directions the AI favors and how it handles tight situations. Then try to
+      replicate that approach yourself.
+    </p>
+
+    <div class="tip tip-success">
+      <strong>The learning cycle:</strong> Play &rarr; Get graded &rarr; Undo &amp; compare &rarr;
+      Try again &rarr; Build intuition. After a few games, you'll find yourself instinctively
+      choosing the right direction.
+    </div>
+
+    <!-- ============================================================ -->
+    <h2>Reading the Score Bars</h2>
+
+    <p>
+      When you press Hint (or enable "Always show hints"), the score bars show how the AI grades
+      each possible direction:
+    </p>
+    <table class="grade-table">
+      <thead>
+        <tr>
+          <th>Bar Label</th>
+          <th>Fill</th>
+          <th>Meaning</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="grade-perfect">Perfect</td>
+          <td>100%</td>
+          <td>Best possible move — matches the AI's choice</td>
+        </tr>
+        <tr>
+          <td class="grade-good">Good</td>
+          <td>75%</td>
+          <td>Very close to optimal — negligible difference</td>
+        </tr>
+        <tr>
+          <td class="grade-ok">OK</td>
+          <td>50%</td>
+          <td>Decent but noticeably suboptimal</td>
+        </tr>
+        <tr>
+          <td class="grade-mistake">Mistake</td>
+          <td>25%</td>
+          <td>Costs real points — there's a clearly better option</td>
+        </tr>
+        <tr>
+          <td class="grade-blunder">Blunder</td>
+          <td>0%</td>
+          <td>Significantly worse — likely leads to trouble</td>
+        </tr>
+        <tr>
+          <td>N/A</td>
+          <td>—</td>
+          <td>Can't move that direction</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ============================================================ -->
+    <h2>Coaching Notes Explained</h2>
+
+    <p>
+      When you make an OK, Mistake, or Blunder move, the coaching engine tells you what went wrong:
+    </p>
+    <ul style="margin: 12px 0 12px 20px">
+      <li>
+        <strong>"Corner lost"</strong> — Your highest tile left its anchor corner. This usually
+        happens when you move in the forbidden direction.
+      </li>
+      <li>
+        <strong>"Monotonicity broken"</strong> — Your snake pattern collapsed. Tiles are now jumbled
+        with high and low values mixed together.
+      </li>
+      <li>
+        <strong>"Board nearly full"</strong> — You dropped to 2 or fewer empty cells. One bad random
+        tile spawn and the game could be over.
+      </li>
+      <li>
+        <strong>"Best move was [direction]"</strong> — The AI found a clearly better direction. Try
+        undoing and following the suggestion to see why.
+      </li>
+    </ul>
+
+    <!-- ============================================================ -->
+    <h2>Common Mistakes</h2>
+
+    <h3>Alternating Up and Down</h3>
+    <p>
+      New players often just alternate between two directions. This works early (when the board is
+      empty and all moves are equivalent) but breaks down quickly. It creates no snake pattern and
+      scatters tiles randomly.
+    </p>
+
+    <h3>Using All Four Directions Equally</h3>
+    <p>
+      Moving in all four directions means your biggest tile wanders around the board. Commit to
+      three directions and avoid the fourth.
+    </p>
+
+    <h3>Chasing One Big Merge</h3>
+    <p>
+      Don't tunnel-vision on combining your two biggest tiles. Often the best move is to merge
+      smaller tiles to free up space, even if it doesn't directly advance toward the 2048 tile.
+    </p>
+
+    <h3>Ignoring the Bottom Row</h3>
+    <p>
+      If your anchor row fills up completely, you'll be forced into the forbidden direction. Always
+      keep at least one space in the anchor row.
+    </p>
+
+    <a href="./" class="back-link">&larr; Back to game</a>
+
+    <footer>
+      <p>
+        This guide reflects the evaluation heuristics and coaching algorithms used by the Learn to
+        Beat 2048 AI.
+      </p>
+    </footer>
+  </body>
+</html>
