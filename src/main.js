@@ -951,7 +951,7 @@ async function aiStep() {
     return;
   }
   if (!aiRunning) return;
-  applyMove(dir);
+  if (!applyMove(dir)) return;
   await lastAnimationPromise;
 }
 
