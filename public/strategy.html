@@ -581,8 +581,8 @@
         happens when you move in the forbidden direction.
       </li>
       <li>
-        <strong>"Monotonicity broken"</strong> — Your snake pattern collapsed. Tiles are now jumbled
-        with high and low values mixed together.
+        <strong>"Snake pattern broken"</strong> — Your snake pattern collapsed. Tiles are now
+        jumbled with high and low values mixed together.
       </li>
       <li>
         <strong>"Board nearly full"</strong> — You dropped to 2 or fewer empty cells. One bad random
@@ -620,6 +620,16 @@
     <p>
       If your anchor row fills up completely, you'll be forced into the forbidden direction. Always
       keep at least one space in the anchor row.
+    </p>
+
+    <h2>A Note on Luck</h2>
+    <p>
+      2048 involves genuine randomness — you can't control which tile spawns or where. With very
+      deep search, AI solvers can reach the 2048 tile in nearly every game. But the AI in this app
+      uses a moderate search depth (6–8 moves ahead) to keep moves fast, and that tradeoff means it
+      occasionally gets caught by an unlucky spawn sequence it couldn't see coming. If you or the AI
+      lose a game despite solid play, try a new seed — a deeper-searching solver would likely have
+      found a way through.
     </p>
 
     <a href="./" class="back-link">&larr; Back to game</a>
