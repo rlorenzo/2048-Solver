@@ -823,10 +823,11 @@ function restoreScoreBarsFromCache() {
   hintOverlayRenderer.hide();
 }
 
-// Restore from cache and, if "Always show hints" is on, auto-request for uncached nodes
+// Restore from cache and, if "Always show hints" is on, ensure hint UI
+// is fully shown (score bars + overlay arrow) for the current node.
 function syncHintModeForCurrentNode() {
   restoreScoreBarsFromCache();
-  if (alwaysHintCheckbox?.checked && !aiResults.has(state.history.cursor) && !aiRunning) {
+  if (alwaysHintCheckbox?.checked && !aiRunning) {
     void requestHint();
   }
 }
