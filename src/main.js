@@ -1235,3 +1235,10 @@ function init() {
 }
 
 init();
+
+// Initialize AdSense ad unit
+try {
+  (window.adsbygoogle = window.adsbygoogle || []).push({});
+} catch {
+  /* AdSense blocked or unavailable */
+}
