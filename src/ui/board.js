@@ -15,6 +15,7 @@ export function createBoardRenderer(container) {
   const shell = container.closest(".board-shell");
   const tileLayer = document.createElement("div");
   tileLayer.className = "tile-layer";
+  tileLayer.setAttribute("aria-hidden", "true");
   // Insert before the win overlay (z-index: 2) so tile-layer is between board and overlay
   const winOverlay = shell.querySelector(".win-overlay");
   if (winOverlay) {
@@ -39,7 +40,7 @@ export function createBoardRenderer(container) {
   const resizeObserver = new ResizeObserver(() => {
     cacheCellPositions();
     // If an animation is in progress, cancel it — positions changed
-    if (currentAnimId > 0) {
+    if (cancelCleanup) {
       cancelCurrentAnimation();
       // Re-render without animation to snap to correct state
       if (lastBoard) instantRender(lastBoard, undefined);
