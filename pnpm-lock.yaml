@@ -18,6 +18,9 @@ importers:
 
   .:
     devDependencies:
+      fallow:
+        specifier: ^2.48.1
+        version: 2.48.1
       vite:
         specifier: npm:@voidzero-dev/vite-plus-core@latest
         version: '@voidzero-dev/vite-plus-core@0.1.16'
@@ -26,6 +29,46 @@ importers:
         version: 0.1.16(@voidzero-dev/vite-plus-core@0.1.16)
 
 packages:
+
+  '@fallow-cli/darwin-arm64@2.48.1':
+    resolution: {integrity: sha512-HUONVavqEpTSEsVTblQqoiy3zSQMSqjpv8WaIaX9v8VshkbuSI7m7uLD0RbbBTp8CiLe59dP1DiT4/LAQkKSZA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@fallow-cli/darwin-x64@2.48.1':
+    resolution: {integrity: sha512-xtDc6DWP1eg83S14ffHpSgttiOG+ioTmLDRwVmrfV0bQA4dVJROTCYggy96sicBTTZInxh89VUxJChO6GFMHbA==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@fallow-cli/linux-arm64-gnu@2.48.1':
+    resolution: {integrity: sha512-CpwFQ8f5psPFkHYG+OQrZEv3+iEDhGRZMg508Xxowz/KiW1Y/8/5SZJ0j0fVVufmLB2FDITwPUnqx+yqfqFW7w==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@fallow-cli/linux-arm64-musl@2.48.1':
+    resolution: {integrity: sha512-65ghEd9RDRH0N5RT0L+Chqpep6NuhmYFH+jSuznuLG4Au+FKN5+YvkwG9zUeyxYP7Aqd7BOpc122s7gD/ye3DA==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@fallow-cli/linux-x64-gnu@2.48.1':
+    resolution: {integrity: sha512-y0+lnUuhs6XZgd7/Y25cHWmQydk63gVS5hxKseZM0N2ceM8U7OcKL5SFMrkCdFUXPz2Jyx8ZY3Z3Eixew0eHAQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@fallow-cli/linux-x64-musl@2.48.1':
+    resolution: {integrity: sha512-Gpf28d44dEFWp2RREkWO/PXRS/15HzkZjVcqucqO5HkWJhEQ8c7/RHOb5uygcd2fNkmYcIbVREhqytiFH5rc0A==}
+    cpu: [x64]
+    os: [linux]
+
+  '@fallow-cli/win32-arm64-msvc@2.48.1':
+    resolution: {integrity: sha512-ApERvuiGOQKOAWvzo+ZHeMPbEgnSqxIvChcTAbH/ddrIG2ABYHzuTsUqpAfAkeXuA9QamIUfUbxVWF4LF1+Tjw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@fallow-cli/win32-x64-msvc@2.48.1':
+    resolution: {integrity: sha512-1lfizU40QLzt+fERX73gH62EzjKjtbGymdIpUDJVb/lSApYTwrOF0BkSl7cqFDHkwOIqCGVcDEXXh5GuclP/hg==}
+    cpu: [x64]
+    os: [win32]
 
   '@oxc-project/runtime@0.123.0':
     resolution: {integrity: sha512-wRf0z8saz9tHLcK3YeTeBmwISrpy4bBimvKxUmryiIhbt+ZJb0nwwJNL3D8xpeWbNfZlGSlzRBZbfcbApIGZJw==}
@@ -468,6 +511,11 @@ packages:
   es-module-lexer@1.7.0:
     resolution: {integrity: sha512-jEQoCwk8hyb2AZziIOLhDqpm5+2ww5uIE6lkO/6jcOCusfk6LhMHpXXfBLXTZ7Ydyt0j4VoUQv6uGNYbdW+kBA==}
 
+  fallow@2.48.1:
+    resolution: {integrity: sha512-toacpvZeG7gGSAV8RC8PW1lLA5BUGnKeRgoQt7Xm1U1IBRRfH+COVHbID90AlPcUaJuFNeTheLongCtV+37wtw==}
+    engines: {node: '>=16'}
+    hasBin: true
+
   fdir@6.5.0:
     resolution: {integrity: sha512-tIbYtZbucOs0BRGqPJkshJUYdL+SDH7dVM8gjy+ERp3WAUjLEFJE+02kanyHtwjWOnwrKYBiwAmM0p4kLJAnXg==}
     engines: {node: '>=12.0.0'}
@@ -654,6 +702,30 @@ packages:
         optional: true
 
 snapshots:
+
+  '@fallow-cli/darwin-arm64@2.48.1':
+    optional: true
+
+  '@fallow-cli/darwin-x64@2.48.1':
+    optional: true
+
+  '@fallow-cli/linux-arm64-gnu@2.48.1':
+    optional: true
+
+  '@fallow-cli/linux-arm64-musl@2.48.1':
+    optional: true
+
+  '@fallow-cli/linux-x64-gnu@2.48.1':
+    optional: true
+
+  '@fallow-cli/linux-x64-musl@2.48.1':
+    optional: true
+
+  '@fallow-cli/win32-arm64-msvc@2.48.1':
+    optional: true
+
+  '@fallow-cli/win32-x64-msvc@2.48.1':
+    optional: true
 
   '@oxc-project/runtime@0.123.0': {}
 
@@ -877,6 +949,19 @@ snapshots:
   detect-libc@2.1.2: {}
 
   es-module-lexer@1.7.0: {}
+
+  fallow@2.48.1:
+    dependencies:
+      detect-libc: 2.1.2
+    optionalDependencies:
+      '@fallow-cli/darwin-arm64': 2.48.1
+      '@fallow-cli/darwin-x64': 2.48.1
+      '@fallow-cli/linux-arm64-gnu': 2.48.1
+      '@fallow-cli/linux-arm64-musl': 2.48.1
+      '@fallow-cli/linux-x64-gnu': 2.48.1
+      '@fallow-cli/linux-x64-musl': 2.48.1
+      '@fallow-cli/win32-arm64-msvc': 2.48.1
+      '@fallow-cli/win32-x64-msvc': 2.48.1
 
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
