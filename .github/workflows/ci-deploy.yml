@@ -34,7 +34,11 @@ jobs:
 
       - name: Code quality audit (fallow)
         if: github.event_name == 'pull_request'
-        run: npx fallow audit --fail-on-issues --changed-since origin/${{ github.base_ref }}
+        run: |
+          npx fallow audit --fail-on-issues \
+            --changed-since origin/${{ github.base_ref }} \
+            --dupes-baseline .fallow-baselines/dupes.json \
+            --health-baseline .fallow-baselines/health.json
 
       - name: Run tests
         run: vp test run

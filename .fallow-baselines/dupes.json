@@ -1,0 +1,15 @@
+{
+  "clone_groups": [
+    "src/game/board.js:123-130|src/game/board.js:94-104",
+    "src/game/board.js:104-110|src/game/board.js:130-136",
+    "src/ui/score-bars.js:115-122|src/ui/score-bars.js:87-94",
+    "src/ui/timeline.js:26-31|src/ui/timeline.js:39-44",
+    "tests/board.test.js:122-130|tests/board.test.js:185-193",
+    "tests/diagnose.test.js:16-20|tests/diagnose.test.js:303-306",
+    "tests/diagnose.test.js:124-128|tests/diagnose.test.js:147-151",
+    "tests/diagnose.test.js:157-160|tests/diagnose.test.js:167-171|tests/diagnose.test.js:176-180|tests/diagnose.test.js:186-190|tests/diagnose.test.js:196-200|tests/diagnose.test.js:206-210|tests/diagnose.test.js:216-220|tests/diagnose.test.js:225-228|tests/diagnose.test.js:279-285|tests/diagnose.test.js:290-293",
+    "tests/diagnose.test.js:249-253|tests/diagnose.test.js:283-287",
+    "tests/history.test.js:20-25|tests/history.test.js:57-62",
+    "tests/history.test.js:77-81|tests/history.test.js:85-89"
+  ]
+}

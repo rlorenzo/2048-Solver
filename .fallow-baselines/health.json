@@ -1,0 +1,78 @@
+{
+  "finding_counts": {
+    "src/ai/worker.js": {
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "src/coaching/diagnose.js": {
+      "complexity_high": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 3
+      }
+    },
+    "src/game/board.js": {
+      "complexity_high": {
+        "count": 1
+      }
+    },
+    "src/main.js": {
+      "complexity_critical": {
+        "count": 2
+      },
+      "crap_critical": {
+        "count": 6
+      },
+      "crap_high": {
+        "count": 3
+      },
+      "crap_moderate": {
+        "count": 7
+      }
+    },
+    "src/ui/board.js": {
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_high": {
+        "count": 2
+      }
+    },
+    "src/ui/debrief.js": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      }
+    },
+    "src/ui/inspector.js": {
+      "crap_high": {
+        "count": 1
+      }
+    },
+    "src/ui/timeline.js": {
+      "complexity_critical": {
+        "count": 1
+      },
+      "crap_critical": {
+        "count": 1
+      },
+      "crap_moderate": {
+        "count": 1
+      }
+    },
+    "tests/bitboard.test.js": {
+      "complexity_moderate": {
+        "count": 1
+      }
+    }
+  },
+  "production_coverage_findings": [],
+  "target_keys": ["src/ui/debrief.js:complexity"]
+}
