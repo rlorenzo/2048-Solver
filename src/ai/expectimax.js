@@ -8,7 +8,7 @@
 // probabilities would compute and then cache different answers. Depth is the
 // sole budget; that's sufficient given our adaptive-depth bounds.
 
-import { move, countEmpty, canMove, keyOf } from "./bitboard.js";
+import { bitMove, countEmpty, bitCanMove, keyOf } from "./bitboard.js";
 import { evaluate } from "./heuristics.js";
 
 // Transposition cache, reset per search.
@@ -32,7 +32,7 @@ export function bestMove(board, userDepth = "auto") {
   const scores = [0, 0, 0, 0];
 
   for (let d = 0; d < 4; d++) {
-    const r = move(board, d);
+    const r = bitMove(board, d);
     if (!r.moved) {
       scores[d] = -Infinity;
       continue;
@@ -50,7 +50,7 @@ export function bestMove(board, userDepth = "auto") {
 
 function maxNode(board, depth) {
   if (depth <= 0) return evaluate(board);
-  if (!canMove(board)) return evaluate(board);
+  if (!bitCanMove(board)) return evaluate(board);
 
   const key = keyOf(board) + "m" + depth;
   const hit = cache.get(key);
@@ -58,7 +58,7 @@ function maxNode(board, depth) {
 
   let best = -Infinity;
   for (let d = 0; d < 4; d++) {
-    const r = move(board, d);
+    const r = bitMove(board, d);
     if (!r.moved) continue;
     const s = chanceNode(r.board, depth - 1);
     if (s > best) best = s;

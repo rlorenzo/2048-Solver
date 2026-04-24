@@ -2,11 +2,11 @@
 // Board represented as Uint8Array of length 16, storing log2(value), 0 = empty.
 // So value 2 -> 1, value 4 -> 2, ..., 2048 -> 11.
 
-import { DIR, DIR_NAMES } from "./constants.js";
+import { DIR } from "./constants.js";
 
-export { DIR, DIR_NAMES };
+export { DIR };
 
-export const SIZE = 4;
+const SIZE = 4;
 export const CELLS = SIZE * SIZE;
 
 export function emptyBoard() {
@@ -15,15 +15,6 @@ export function emptyBoard() {
 
 export function cloneBoard(b) {
   return new Uint8Array(b);
-}
-
-export function boardEquals(a, b) {
-  for (let i = 0; i < CELLS; i++) if (a[i] !== b[i]) return false;
-  return true;
-}
-
-export function valueAt(b, i) {
-  return b[i] === 0 ? 0 : 2 ** b[i];
 }
 
 export function maxTile(b) {
@@ -198,13 +189,6 @@ export function canMove(b) {
       if (c < 3 && b[r * 4 + c + 1] === v) return true;
       if (r < 3 && b[(r + 1) * 4 + c] === v) return true;
     }
-  }
-  return false;
-}
-
-export function anyMoveChanges(b) {
-  for (let d = 0; d < 4; d++) {
-    if (move(b, d).moved) return true;
   }
   return false;
 }

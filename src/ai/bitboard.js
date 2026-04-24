@@ -9,12 +9,9 @@
 // tables. UP/DOWN do the column equivalent by extracting columns into row-
 // sized integers, looking up the slide, then scattering back.
 
-import { DIR, DIR_NAMES } from "../game/constants.js";
+import { DIR } from "../game/constants.js";
 
-export { DIR, DIR_NAMES };
-
-export const CELLS = 16;
-export const SIZE = 4;
+export { DIR };
 
 // --- Slide a single 4-cell row to the left (toward column 0).
 // Given a row as [c0, c1, c2, c3], slide non-zero cells left, merging equal
@@ -46,10 +43,10 @@ function slideLeft(cells) {
 }
 
 // --- Precompute row transition tables (65536 entries each).
-export const ROW_LEFT = new Uint16Array(65536);
-export const ROW_RIGHT = new Uint16Array(65536);
-export const ROW_LEFT_SCORE = new Float64Array(65536);
-export const ROW_RIGHT_SCORE = new Float64Array(65536);
+const ROW_LEFT = new Uint16Array(65536);
+const ROW_RIGHT = new Uint16Array(65536);
+const ROW_LEFT_SCORE = new Float64Array(65536);
+const ROW_RIGHT_SCORE = new Float64Array(65536);
 
 function reverseRow(r) {
   return ((r & 0xf) << 12) | (((r >> 4) & 0xf) << 8) | (((r >> 8) & 0xf) << 4) | ((r >> 12) & 0xf);
@@ -91,7 +88,7 @@ export function transpose(board) {
 
 // --- Moves. Each returns a new board (Uint16Array(4)) plus score + moved flag.
 
-export function moveLeft(board) {
+function moveLeft(board) {
   const out = new Uint16Array(4);
   let score = 0;
   let moved = false;
@@ -105,7 +102,7 @@ export function moveLeft(board) {
   return { board: out, score, moved };
 }
 
-export function moveRight(board) {
+function moveRight(board) {
   const out = new Uint16Array(4);
   let score = 0;
   let moved = false;
@@ -119,20 +116,20 @@ export function moveRight(board) {
   return { board: out, score, moved };
 }
 
-export function moveUp(board) {
+function moveUp(board) {
   // Slide each column toward row 0. Transpose, moveLeft, transpose back.
   const t = transpose(board);
   const { board: moved_t, score, moved } = moveLeft(t);
   return { board: transpose(moved_t), score, moved };
 }
 
-export function moveDown(board) {
+function moveDown(board) {
   const t = transpose(board);
   const { board: moved_t, score, moved } = moveRight(t);
   return { board: transpose(moved_t), score, moved };
 }
 
-export function move(board, dir) {
+export function bitMove(board, dir) {
   switch (dir) {
     case DIR.LEFT:
       return moveLeft(board);
@@ -149,11 +146,7 @@ export function move(board, dir) {
 
 // --- Helpers on bitboards
 
-export function newBoard() {
-  return new Uint16Array(4);
-}
-
-export function cloneBoard(b) {
+function cloneBoard(b) {
   return new Uint16Array(b);
 }
 
@@ -179,10 +172,6 @@ export function withCell(board, pos, exp) {
 
 // --- End test-only helpers. ---
 
-export function boardsEqual(a, b) {
-  return a[0] === b[0] && a[1] === b[1] && a[2] === b[2] && a[3] === b[3];
-}
-
 export function countEmpty(board) {
   let n = 0;
   for (let i = 0; i < 4; i++) {
@@ -195,27 +184,7 @@ export function countEmpty(board) {
   return n;
 }
 
-export function emptyCells(board) {
-  const out = [];
-  for (let pos = 0; pos < 16; pos++) {
-    if (getCell(board, pos) === 0) out.push(pos);
-  }
-  return out;
-}
-
-export function maxExp(board) {
-  let m = 0;
-  for (let i = 0; i < 4; i++) {
-    const r = board[i];
-    for (let j = 0; j < 4; j++) {
-      const v = (r >> (4 * j)) & 0xf;
-      if (v > m) m = v;
-    }
-  }
-  return m;
-}
-
-export function canMove(board) {
+export function bitCanMove(board) {
   if (countEmpty(board) > 0) return true;
   // Adjacent equals in rows
   for (let i = 0; i < 4; i++) {

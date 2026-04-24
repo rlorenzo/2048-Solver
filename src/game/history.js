@@ -45,6 +45,7 @@ export class History {
     return this.nodes.get(this.cursor);
   }
 
+  // fallow-ignore-next-line unused-class-member
   get(id) {
     return this.nodes.get(id);
   }

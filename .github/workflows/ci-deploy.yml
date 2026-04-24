@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: voidzero-dev/setup-vp@v1
         with:
@@ -29,6 +31,25 @@ jobs:
 
       - name: Lint & format check
         run: vp check
+
+      - name: Snapshot fallow baselines from ${{ github.base_ref }}
+        if: github.event_name == 'pull_request'
+        run: |
+          git worktree add ../main-snapshot origin/${{ github.base_ref }}
+          # `fallow health` exits non-zero when findings exceed thresholds on
+          # base, but we only need the baseline file written — don't fail CI.
+          npx fallow dupes --root ../main-snapshot --no-cache --save-baseline /tmp/dupes-baseline.json --quiet || true
+          npx fallow health --root ../main-snapshot --no-cache --save-baseline /tmp/health-baseline.json --quiet || true
+          git worktree remove --force ../main-snapshot
+          test -s /tmp/dupes-baseline.json && test -s /tmp/health-baseline.json
+
+      - name: Code quality audit (fallow)
+        if: github.event_name == 'pull_request'
+        run: |
+          npx fallow audit --fail-on-issues \
+            --changed-since origin/${{ github.base_ref }} \
+            --dupes-baseline /tmp/dupes-baseline.json \
+            --health-baseline /tmp/health-baseline.json
 
       - name: Run tests
         run: vp test run
