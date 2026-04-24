@@ -59,7 +59,7 @@ function computeLineScore(r0, r1, r2, r3) {
   );
 }
 
-export const ROW_SCORE = new Float64Array(65536);
+const ROW_SCORE = new Float64Array(65536);
 for (let i = 0; i < 65536; i++) {
   const r0 = i & 0xf;
   const r1 = (i >> 4) & 0xf;
