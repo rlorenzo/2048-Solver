@@ -1,0 +1,7 @@
+# Bulk dead-code cleanup surfaced by fallow — pure removals + one rename.
+# No behavior changes; original line authorship is preserved by skipping
+# this commit in `git blame` (and GitHub blame UI auto-detects this file).
+#
+# To honor it locally:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+6201949bf18202e4c2e17e195c33e74db4850bda
