@@ -7,6 +7,17 @@ function makeBoard(seed) {
   return b;
 }
 
+// Build a fresh History and record a sequence of moves. Each move uses
+// makeBoard(i+2) as the resulting board (so boards differ per step) and
+// `scoreFn(i)` for its score. Returns the History.
+function historyWith(dirs, scoreFn = () => 0) {
+  const h = new History(makeBoard(1));
+  for (let i = 0; i < dirs.length; i++) {
+    h.record(dirs[i], makeBoard(i + 2), scoreFn(i), null);
+  }
+  return h;
+}
+
 describe("History", () => {
   it("tracks cursor and depth", () => {
     const h = new History(makeBoard(1));
@@ -18,9 +29,7 @@ describe("History", () => {
   });
 
   it("stepBack and stepForward", () => {
-    const h = new History(makeBoard(1));
-    h.record(0, makeBoard(2), 4, null);
-    h.record(1, makeBoard(3), 8, null);
+    const h = historyWith([0, 1], (i) => 4 * (i + 1));
     h.stepBack();
     expect(h.depth()).toBe(1);
     h.stepBack();
@@ -55,9 +64,8 @@ describe("History", () => {
   });
 
   it("creates new branch when cursor is rewound and a different dir is played", () => {
-    const h = new History(makeBoard(1));
-    h.record(0, makeBoard(2), 4, null); // branch A, move UP
-    h.record(1, makeBoard(3), 8, null); // continue A
+    // branch A: UP then RIGHT
+    const h = historyWith([0, 1], (i) => 4 * (i + 1));
     h.stepBack(); // back to node after UP
     expect(h.siblings().length).toBe(1);
     h.record(2, makeBoard(9), 12, null); // play DOWN — creates sibling
@@ -75,18 +83,12 @@ describe("History", () => {
   });
 
   it("movesFromRoot returns directions along path", () => {
-    const h = new History(makeBoard(1));
-    h.record(0, makeBoard(2), 0, null);
-    h.record(1, makeBoard(3), 0, null);
-    h.record(2, makeBoard(4), 0, null);
+    const h = historyWith([0, 1, 2]);
     expect(h.movesFromRoot()).toEqual([0, 1, 2]);
   });
 
   it("preferredPathFromRoot includes future nodes on the visible branch", () => {
-    const h = new History(makeBoard(1));
-    h.record(0, makeBoard(2), 0, null);
-    h.record(1, makeBoard(3), 0, null);
-    h.record(2, makeBoard(4), 0, null);
+    const h = historyWith([0, 1, 2]);
     h.stepBack();
     h.stepBack();
 
