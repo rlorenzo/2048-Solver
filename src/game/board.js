@@ -85,77 +85,75 @@ function slideRowLeftTracked(row) {
   return [out, score, trajectories];
 }
 
-// Apply a move in the given direction. Returns
-// { board, score, moved } — a NEW board if moved, else original.
-export function move(board, dir) {
-  const b = board;
-  const out = new Uint8Array(CELLS);
+// Walk each line in `dir`, slide it via `slideFn`, and write it back to `out`.
+// Returns aggregate { score, moved } and yields each line's slide result to
+// `onLine(line, row, slideResult)` so callers can collect per-line metadata
+// (e.g. trajectories) without re-reading the board.
+function forEachLine(b, out, dir, slideFn, onLine) {
   let score = 0;
   let moved = false;
-
-  // We extract rows in the direction we're sliding TOWARD,
-  // slide left, then write back.
   for (let line = 0; line < 4; line++) {
     const row = [0, 0, 0, 0];
-    // Read indices in the current direction
     for (let k = 0; k < 4; k++) {
       row[k] = b[readIndex(dir, line, k)];
     }
-    const [newRow, s] = slideRowLeft(row);
-    score += s;
+    const result = slideFn(row);
+    const newRow = result[0];
+    score += result[1];
     for (let k = 0; k < 4; k++) {
       const idx = readIndex(dir, line, k);
       out[idx] = newRow[k];
       if (newRow[k] !== row[k]) moved = true;
     }
+    if (onLine) onLine(line, row, result);
   }
+  return { score, moved };
+}
 
-  return { board: moved ? out : b, score, moved };
+// Apply a move in the given direction. Returns
+// { board, score, moved } — a NEW board if moved, else original.
+export function move(board, dir) {
+  const out = new Uint8Array(CELLS);
+  const { score, moved } = forEachLine(board, out, dir, slideRowLeft, null);
+  return { board: moved ? out : board, score, moved };
 }
 
 // Like move() but also returns trajectory and merge info for animations.
 export function moveWithTrajectories(board, dir) {
-  const b = board;
   const out = new Uint8Array(CELLS);
-  let score = 0;
-  let moved = false;
   const trajectories = [];
   const mergedCells = [];
 
-  for (let line = 0; line < 4; line++) {
-    const row = [0, 0, 0, 0];
-    for (let k = 0; k < 4; k++) {
-      row[k] = b[readIndex(dir, line, k)];
-    }
-    const [newRow, s, rowTrajectories] = slideRowLeftTracked(row);
-    score += s;
-    for (let k = 0; k < 4; k++) {
-      const idx = readIndex(dir, line, k);
-      out[idx] = newRow[k];
-      if (newRow[k] !== row[k]) moved = true;
-    }
-    // Collect merge destinations for this row
-    const rowMergeDests = new Set();
-    for (const t of rowTrajectories) {
-      if (t.merged) rowMergeDests.add(t.to);
-    }
-    // Translate row-local indices to flat board indices and filter
-    for (const t of rowTrajectories) {
-      const fromFlat = readIndex(dir, line, t.from);
-      const toFlat = readIndex(dir, line, t.to);
-      const involvedInMerge = rowMergeDests.has(t.to);
-      // Only include if tile actually moved or was involved in a merge
-      if (fromFlat !== toFlat || involvedInMerge) {
-        trajectories.push({ from: fromFlat, to: toFlat, merged: t.merged, exp: t.exp });
-        if (involvedInMerge && !mergedCells.includes(toFlat)) {
-          mergedCells.push(toFlat);
+  const { score, moved } = forEachLine(
+    board,
+    out,
+    dir,
+    slideRowLeftTracked,
+    (line, _row, result) => {
+      const rowTrajectories = result[2];
+      // Collect merge destinations for this row
+      const rowMergeDests = new Set();
+      for (const t of rowTrajectories) {
+        if (t.merged) rowMergeDests.add(t.to);
+      }
+      // Translate row-local indices to flat board indices and filter
+      for (const t of rowTrajectories) {
+        const fromFlat = readIndex(dir, line, t.from);
+        const toFlat = readIndex(dir, line, t.to);
+        const involvedInMerge = rowMergeDests.has(t.to);
+        // Only include if tile actually moved or was involved in a merge
+        if (fromFlat !== toFlat || involvedInMerge) {
+          trajectories.push({ from: fromFlat, to: toFlat, merged: t.merged, exp: t.exp });
+          if (involvedInMerge && !mergedCells.includes(toFlat)) {
+            mergedCells.push(toFlat);
+          }
         }
       }
-    }
-  }
+    },
+  );
 
   return {
-    board: moved ? out : b,
+    board: moved ? out : board,
     score,
     moved,
     trajectories,

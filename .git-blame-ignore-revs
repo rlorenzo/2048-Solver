@@ -5,3 +5,13 @@
 # To honor it locally:
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
 6201949bf18202e4c2e17e195c33e74db4850bda
+
+# Refactor pass surfaced by fallow audit (duplication + complexity):
+# extract shared helpers in board.js, score-bars.js, timeline.js,
+# debrief.js, the global keydown handler, and three test files. Pure
+# refactors — no behavior change, all 99 tests still pass.
+ba9f30aa9d970fa59bc7a1edd935ede09aa24e64
+19fdc31a2d62e5eeea7998bb66676f96b7dce87a
+dfd2cb6a0f940d342fa7e45dd8423366ef8fd89a
+01fee36309f8907b2a37ca236e1c911a1eb06f51
+72f7266eb787ca83ce2c2ad3f257669b971825bb

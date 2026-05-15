@@ -16,6 +16,20 @@ function boardFrom(arr) {
   return new Uint8Array(arr);
 }
 
+// Asserts a two-tile merge in `r` where the surviving tile came from
+// `survivingFrom` and the consumed tile from `consumedFrom`, both landing at
+// `mergeAt`. Used for moveWithTrajectories tests.
+function expectMergePair(r, mergeAt, survivingFrom, consumedFrom, exp) {
+  expect(r.moved).toBe(true);
+  expect(r.score).toBe(2 ** (exp + 1));
+  expect(r.trajectories).toHaveLength(2);
+  const surviving = r.trajectories.find((t) => !t.merged);
+  const consumed = r.trajectories.find((t) => t.merged);
+  expect(surviving).toEqual({ from: survivingFrom, to: mergeAt, merged: false, exp });
+  expect(consumed).toEqual({ from: consumedFrom, to: mergeAt, merged: true, exp });
+  expect(r.mergedCells).toEqual([mergeAt]);
+}
+
 describe("move()", () => {
   it("slides tiles left and merges equal adjacent", () => {
     const b = boardFrom([1, 1, 0, 0, 2, 0, 2, 0, 0, 3, 3, 0, 1, 2, 3, 4]);
@@ -120,15 +134,7 @@ describe("moveWithTrajectories", () => {
     // Row 0: [1,1,0,0] -> [2,0,0,0], score=4
     const b = boardFrom([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const r = moveWithTrajectories(b, DIR.LEFT);
-    expect(r.moved).toBe(true);
-    expect(r.score).toBe(4);
-    // Two trajectories: both point to index 0
-    expect(r.trajectories).toHaveLength(2);
-    const surviving = r.trajectories.find((t) => !t.merged);
-    const consumed = r.trajectories.find((t) => t.merged);
-    expect(surviving).toEqual({ from: 0, to: 0, merged: false, exp: 1 });
-    expect(consumed).toEqual({ from: 1, to: 0, merged: true, exp: 1 });
-    expect(r.mergedCells).toEqual([0]);
+    expectMergePair(r, 0, 0, 1, 1);
   });
 
   it("multiple merges in one move", () => {
@@ -180,18 +186,11 @@ describe("moveWithTrajectories", () => {
   });
 
   it("merge with UP direction", () => {
-    // Column 0: rows 0 and 1 both have exp=1, merge to row 0
+    // Column 0: rows 0 and 1 both have exp=1, merge to row 0.
+    // index 0 stays at 0 (surviving), index 4 merges into 0 (consumed).
     const b = boardFrom([1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     const r = moveWithTrajectories(b, DIR.UP);
-    expect(r.moved).toBe(true);
-    expect(r.score).toBe(4);
-    expect(r.trajectories).toHaveLength(2);
-    const surviving = r.trajectories.find((t) => !t.merged);
-    const consumed = r.trajectories.find((t) => t.merged);
-    // index 0 stays at 0 (surviving), index 4 merges into 0 (consumed)
-    expect(surviving).toEqual({ from: 0, to: 0, merged: false, exp: 1 });
-    expect(consumed).toEqual({ from: 4, to: 0, merged: true, exp: 1 });
-    expect(r.mergedCells).toEqual([0]);
+    expectMergePair(r, 0, 0, 4, 1);
   });
 
   it("no-op move returns moved=false and empty trajectories", () => {
