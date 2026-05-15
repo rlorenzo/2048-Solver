@@ -7,7 +7,7 @@
     "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
-    "check": "vp check && fallow audit",
+    "check": "vp check && fallow audit --health-baseline .fallow/health-baseline.json --dupes-baseline .fallow/dupes-baseline.json",
     "lint": "vp lint",
     "fmt": "vp fmt",
     "fallow": "fallow",
