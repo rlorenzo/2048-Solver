@@ -82,28 +82,26 @@ export function createScoreBarsRenderer(container) {
     caption.textContent = `depth ${depth} \u00b7 ${msLabel}`;
   }
 
-  function showLoading() {
-    container.classList.remove("hidden", "score-bars-error");
-    container.classList.add("score-bars-loading");
+  function clearBars(valueText, ariaLabel) {
     for (const { fill, value, row } of rows) {
       fill.style.width = "0%";
-      value.textContent = "";
+      value.textContent = valueText;
       row.classList.remove("score-bar-best", "score-bar-disabled");
     }
     caption.textContent = "";
-    container.setAttribute("aria-label", "Loading AI scores\u2026");
+    container.setAttribute("aria-label", ariaLabel);
+  }
+
+  function showLoading() {
+    container.classList.remove("hidden", "score-bars-error");
+    container.classList.add("score-bars-loading");
+    clearBars("", "Loading AI scores\u2026");
   }
 
   function showError() {
     container.classList.remove("hidden", "score-bars-loading");
     container.classList.add("score-bars-error");
-    for (const { fill, value, row } of rows) {
-      fill.style.width = "0%";
-      value.textContent = "\u2014";
-      row.classList.remove("score-bar-best", "score-bar-disabled");
-    }
-    caption.textContent = "";
-    container.setAttribute("aria-label", "AI scores unavailable");
+    clearBars("\u2014", "AI scores unavailable");
   }
 
   function hide() {
@@ -113,13 +111,7 @@ export function createScoreBarsRenderer(container) {
   function reset() {
     hide();
     container.classList.remove("score-bars-loading", "score-bars-error");
-    for (const { fill, value, row } of rows) {
-      fill.style.width = "0%";
-      value.textContent = "";
-      row.classList.remove("score-bar-best", "score-bar-disabled");
-    }
-    caption.textContent = "";
-    container.setAttribute("aria-label", "AI direction scores");
+    clearBars("", "AI direction scores");
   }
 
   return { render, showLoading, showError, hide, reset };

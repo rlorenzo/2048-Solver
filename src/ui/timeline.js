@@ -23,13 +23,20 @@ const GRADE_TICK_CLASS = {
 };
 
 export function createTimelineRenderer(container, onTickClick, onTickHover) {
+  // Walk up from an event target to the enclosing tick and parse its node id.
+  // Returns { tick, id } or null when the event didn't land on a valid tick.
+  function tickFromEvent(e) {
+    if (!(e.target instanceof Element)) return null;
+    const tick = e.target.closest("[data-node-id]");
+    if (!tick) return null;
+    const id = parseInt(tick.dataset.nodeId, 10);
+    if (!Number.isFinite(id)) return null;
+    return { tick, id };
+  }
+
   container.addEventListener("click", (e) => {
-    if (!(e.target instanceof Element)) return;
-    const target = e.target.closest("[data-node-id]");
-    if (!target) return;
-    const id = parseInt(target.dataset.nodeId, 10);
-    if (!Number.isFinite(id)) return;
-    onTickClick(id, target);
+    const hit = tickFromEvent(e);
+    if (hit) onTickClick(hit.id, hit.tick);
   });
 
   if (onTickHover) {
@@ -37,23 +44,18 @@ export function createTimelineRenderer(container, onTickClick, onTickHover) {
     // the latter don't bubble, so container-level delegation never fires
     // for individual tick elements.
     container.addEventListener("pointerover", (e) => {
-      if (!(e.target instanceof Element)) return;
-      const target = e.target.closest("[data-node-id]");
-      if (!target) return;
-      const id = parseInt(target.dataset.nodeId, 10);
-      if (!Number.isFinite(id)) return;
-      onTickHover(id, target);
+      const hit = tickFromEvent(e);
+      if (hit) onTickHover(hit.id, hit.tick);
     });
 
     container.addEventListener("pointerout", (e) => {
-      if (!(e.target instanceof Element)) return;
-      const target = e.target.closest("[data-node-id]");
-      if (!target) return;
+      const hit = tickFromEvent(e);
+      if (!hit) return;
       // Only dismiss when the pointer leaves a tick entirely (not moving
       // to a child element within the same tick).
       const related =
         e.relatedTarget instanceof Element ? e.relatedTarget.closest("[data-node-id]") : null;
-      if (related === target) return;
+      if (related === hit.tick) return;
       onTickHover(null, null);
     });
   }
