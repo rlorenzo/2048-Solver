@@ -12,11 +12,15 @@ vp check        # Lint + format check + type check
 vp lint         # Oxlint (type-aware)
 vp fmt          # Oxfmt
 vp check --fix  # Auto-fix lint/format issues
+pnpm check      # vp check + fallow audit (quality gate on changed files)
+pnpm fallow     # Full fallow report (dead code, dupes, complexity, hotspots)
 ```
 
 Package manager: **pnpm@10.33.0** (enforced via `packageManager` field).
 
 Linting and formatting use Vite+ built-ins (Oxlint, Oxfmt) — no separate ESLint/Prettier configs. Config lives in `vite.config.ts`. Pre-commit hook runs `vp staged` (which runs `vp check --fix` on staged files).
+
+Codebase intelligence comes from [fallow](https://fallow.tools): `fallow audit` (changed files only, used in `pnpm check` and CI) gates dead code / duplication / complexity regressions, while `pnpm fallow` prints the full project report.
 
 ## Project Structure
 

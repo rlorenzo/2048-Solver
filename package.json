@@ -7,9 +7,10 @@
     "dev": "vp dev",
     "build": "vp build",
     "preview": "vp preview",
-    "check": "vp check",
+    "check": "vp check && fallow audit",
     "lint": "vp lint",
     "fmt": "vp fmt",
+    "fallow": "fallow",
     "test": "vp test run",
     "prepare": "vp config"
   },
