@@ -1000,6 +1000,44 @@ function stopAI() {
 
 // --- Input handlers
 
+// Don't intercept keys when focus is inside interactive controls — let
+// them handle their own keyboard interaction (e.g. Space on a button
+// should click it, not toggle AI).
+function isInteractiveTarget(target) {
+  const tag = target?.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "SELECT" ||
+    tag === "TEXTAREA" ||
+    tag === "BUTTON" ||
+    tag === "A" ||
+    !!target?.isContentEditable
+  );
+}
+
+const ARROW_TO_DIR = {
+  ArrowUp: DIR.UP,
+  ArrowRight: DIR.RIGHT,
+  ArrowDown: DIR.DOWN,
+  ArrowLeft: DIR.LEFT,
+};
+
+// Shift+arrow scrubs the history cursor. Cancels AI/hint/grade work first.
+function scrubHistory(direction) {
+  if (aiRunning) stopAI();
+  cancelHint();
+  cancelGrade();
+  if (direction === "back") {
+    state.history.stepBack();
+  } else {
+    state.history.stepForward();
+  }
+  syncHintModeForCurrentNode();
+  restoreGradeFromCache();
+  renderAll();
+  syncURL();
+}
+
 window.addEventListener("keydown", (e) => {
   if (!state) return;
   const k = e.key;
@@ -1011,45 +1049,17 @@ window.addEventListener("keydown", (e) => {
     }
     return;
   }
-  // Don't intercept keys when focus is inside interactive controls — let
-  // them handle their own keyboard interaction (e.g. Space on a button
-  // should click it, not toggle AI).
-  const tag = e.target?.tagName;
-  if (
-    tag === "INPUT" ||
-    tag === "SELECT" ||
-    tag === "TEXTAREA" ||
-    tag === "BUTTON" ||
-    tag === "A" ||
-    e.target?.isContentEditable
-  )
-    return;
+  if (isInteractiveTarget(e.target)) return;
+
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
-    if (aiRunning) stopAI();
-    cancelHint();
-    cancelGrade();
-    if (k === "ArrowLeft") {
-      state.history.stepBack();
-    } else {
-      state.history.stepForward();
-    }
-    syncHintModeForCurrentNode();
-    restoreGradeFromCache();
-    renderAll();
-    syncURL();
+    scrubHistory(k === "ArrowLeft" ? "back" : "forward");
     return;
   }
-  if (k === "ArrowUp" || k === "ArrowRight" || k === "ArrowDown" || k === "ArrowLeft") {
+  const dir = ARROW_TO_DIR[k];
+  if (dir !== undefined) {
     e.preventDefault();
-    if (aiRunning) return;
-    const dir = {
-      ArrowUp: DIR.UP,
-      ArrowRight: DIR.RIGHT,
-      ArrowDown: DIR.DOWN,
-      ArrowLeft: DIR.LEFT,
-    }[k];
-    applyMove(dir);
+    if (!aiRunning) applyMove(dir);
     return;
   }
   if (k === " ") {
