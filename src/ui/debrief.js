@@ -4,99 +4,6 @@
 
 const GRADE_RANK = { best: 0, good: 1, ok: 2, mistake: 3, blunder: 4 };
 
-// Walk pathGrades once, returning the worst grade entry, best consecutive
-// best/good streak length, and category counts.
-function computeStats(pathGrades) {
-  let worstGrade = null;
-  let worstDelta = 0;
-  let bestStreakLen = 0;
-  let currentStreakLen = 0;
-  let mistakeCount = 0;
-  let blunderCount = 0;
-  let bestCount = 0;
-
-  for (const grade of pathGrades) {
-    if (grade.grade === "mistake") mistakeCount++;
-    if (grade.grade === "blunder") blunderCount++;
-    if (grade.grade === "best") bestCount++;
-
-    const rank = GRADE_RANK[grade.grade] ?? 2;
-    const worstRank = worstGrade ? (GRADE_RANK[worstGrade.grade] ?? 2) : -1;
-    if (rank > worstRank || (rank === worstRank && grade.scoreDelta > worstDelta)) {
-      worstGrade = grade;
-      worstDelta = grade.scoreDelta;
-    }
-
-    if (grade.grade === "best" || grade.grade === "good") {
-      currentStreakLen++;
-      if (currentStreakLen > bestStreakLen) bestStreakLen = currentStreakLen;
-    } else {
-      currentStreakLen = 0;
-    }
-  }
-
-  return { worstGrade, bestStreakLen, mistakeCount, blunderCount, bestCount };
-}
-
-// Translate aggregated stats into the ordered list of {label, value, cls}
-// rows that the renderer paints. Returns [] when nothing notable happened.
-function buildStatsItems(stats, gradedMoves) {
-  const items = [];
-  const { worstGrade, bestStreakLen, mistakeCount, blunderCount, bestCount } = stats;
-
-  if (worstGrade && (worstGrade.grade === "mistake" || worstGrade.grade === "blunder")) {
-    items.push({
-      label: worstGrade.grade === "blunder" ? "Worst blunder" : "Worst mistake",
-      value: worstGrade.coachNote || "AI preferred a different move",
-      cls: "debrief-stat-bad",
-    });
-  }
-
-  if (bestStreakLen > 0) {
-    items.push({
-      label: "Best streak",
-      value: `${bestStreakLen} good moves in a row`,
-      cls: "debrief-stat-good",
-    });
-  }
-
-  if (gradedMoves > 0) {
-    const accuracy = Math.round((bestCount / gradedMoves) * 100);
-    items.push({
-      label: "Accuracy",
-      value: `${accuracy}% best moves (${bestCount}/${gradedMoves})`,
-      cls: "debrief-stat-neutral",
-    });
-  }
-
-  if (mistakeCount + blunderCount > 0) {
-    items.push({
-      label: "Errors",
-      value: `${mistakeCount} mistake${mistakeCount !== 1 ? "s" : ""}, ${blunderCount} blunder${blunderCount !== 1 ? "s" : ""}`,
-      cls: "debrief-stat-neutral",
-    });
-  }
-
-  return items;
-}
-
-function renderStatsRow(statsEl, item) {
-  const row = document.createElement("div");
-  row.className = `debrief-stat ${item.cls}`;
-
-  const labelEl = document.createElement("span");
-  labelEl.className = "debrief-stat-label";
-  labelEl.textContent = item.label;
-  row.appendChild(labelEl);
-
-  const valueEl = document.createElement("span");
-  valueEl.className = "debrief-stat-value";
-  valueEl.textContent = item.value;
-  row.appendChild(valueEl);
-
-  statsEl.appendChild(row);
-}
-
 export function createDebriefRenderer(container, onRetrySeed) {
   container.innerHTML = "";
   container.className = "debrief hidden";
@@ -126,11 +33,90 @@ export function createDebriefRenderer(container, onRetrySeed) {
   });
 
   function show(pathGrades, totalMoves) {
-    const stats = computeStats(pathGrades);
-    const items = buildStatsItems(stats, pathGrades.length);
+    // Compute stats from path-filtered grade array
+    let worstGrade = null;
+    let worstDelta = 0;
+    let bestStreakLen = 0;
+    let currentStreakLen = 0;
+    let mistakeCount = 0;
+    let blunderCount = 0;
+    let bestCount = 0;
 
+    for (const grade of pathGrades) {
+      if (grade.grade === "mistake") mistakeCount++;
+      if (grade.grade === "blunder") blunderCount++;
+      if (grade.grade === "best") bestCount++;
+
+      // Track worst
+      const rank = GRADE_RANK[grade.grade] ?? 2;
+      const worstRank = worstGrade ? (GRADE_RANK[worstGrade.grade] ?? 2) : -1;
+      if (rank > worstRank || (rank === worstRank && grade.scoreDelta > worstDelta)) {
+        worstGrade = grade;
+        worstDelta = grade.scoreDelta;
+      }
+
+      // Track best streak
+      if (grade.grade === "best" || grade.grade === "good") {
+        currentStreakLen++;
+        if (currentStreakLen > bestStreakLen) bestStreakLen = currentStreakLen;
+      } else {
+        currentStreakLen = 0;
+      }
+    }
+
+    // Build stats content
     statsEl.innerHTML = "";
-    for (const item of items) renderStatsRow(statsEl, item);
+
+    const items = [];
+
+    if (worstGrade && (worstGrade.grade === "mistake" || worstGrade.grade === "blunder")) {
+      const label = worstGrade.grade === "blunder" ? "Worst blunder" : "Worst mistake";
+      const note = worstGrade.coachNote || `AI preferred a different move`;
+      items.push({ label, value: note, cls: "debrief-stat-bad" });
+    }
+
+    if (bestStreakLen > 0) {
+      items.push({
+        label: "Best streak",
+        value: `${bestStreakLen} good moves in a row`,
+        cls: "debrief-stat-good",
+      });
+    }
+
+    const gradedMoves = pathGrades.length;
+    if (gradedMoves > 0) {
+      const accuracy = Math.round((bestCount / gradedMoves) * 100);
+      items.push({
+        label: "Accuracy",
+        value: `${accuracy}% best moves (${bestCount}/${gradedMoves})`,
+        cls: "debrief-stat-neutral",
+      });
+    }
+
+    if (mistakeCount + blunderCount > 0) {
+      items.push({
+        label: "Errors",
+        value: `${mistakeCount} mistake${mistakeCount !== 1 ? "s" : ""}, ${blunderCount} blunder${blunderCount !== 1 ? "s" : ""}`,
+        cls: "debrief-stat-neutral",
+      });
+    }
+
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = `debrief-stat ${item.cls}`;
+
+      const labelEl = document.createElement("span");
+      labelEl.className = "debrief-stat-label";
+      labelEl.textContent = item.label;
+      row.appendChild(labelEl);
+
+      const valueEl = document.createElement("span");
+      valueEl.className = "debrief-stat-value";
+      valueEl.textContent = item.value;
+      row.appendChild(valueEl);
+
+      statsEl.appendChild(row);
+    }
 
     if (items.length === 0) {
       const empty = document.createElement("div");

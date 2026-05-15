@@ -1003,16 +1003,11 @@ function stopAI() {
 // Don't intercept keys when focus is inside interactive controls — let
 // them handle their own keyboard interaction (e.g. Space on a button
 // should click it, not toggle AI).
+const INTERACTIVE_TAGS = new Set(["INPUT", "SELECT", "TEXTAREA", "BUTTON", "A"]);
+
 function isInteractiveTarget(target) {
-  const tag = target?.tagName;
-  return (
-    tag === "INPUT" ||
-    tag === "SELECT" ||
-    tag === "TEXTAREA" ||
-    tag === "BUTTON" ||
-    tag === "A" ||
-    !!target?.isContentEditable
-  );
+  if (!target) return false;
+  return INTERACTIVE_TAGS.has(target.tagName) || !!target.isContentEditable;
 }
 
 const ARROW_TO_DIR = {
