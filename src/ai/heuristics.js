@@ -1,8 +1,6 @@
 // Row-based evaluation on the bitboard representation. Adapted from
 // nneonneo/2048-ai. 65536-entry row score table; evaluate() does 8 lookups.
 
-import { transpose } from "./bitboard.js";
-
 const SCORE_LOST_PENALTY = 200000.0;
 const SCORE_MONOTONICITY_POWER = 4.0;
 const SCORE_MONOTONICITY_WEIGHT = 47.0;
@@ -69,16 +67,44 @@ for (let i = 0; i < 65536; i++) {
 }
 
 // Evaluate a bitboard (Uint16Array(4)). Sum of row scores + column scores.
+//
+// Column values are extracted directly with shifts/masks (same technique as
+// countEmpty/bitCanMove in bitboard.js) instead of calling transpose(), which
+// would allocate a new Uint16Array(4) on every call — evaluate() runs at
+// every search leaf, so that allocation was a hot-path cost worth avoiding.
 export function evaluate(board) {
-  const t = transpose(board);
+  const b0 = board[0];
+  const b1 = board[1];
+  const b2 = board[2];
+  const b3 = board[3];
+
+  // Column c of the board (cell bits at offset 4c inside each row) becomes a
+  // row-sized packed value, identical to what transpose(board)[c] would hold.
+  const t0 = (b0 & 0xf) | ((b1 & 0xf) << 4) | ((b2 & 0xf) << 8) | ((b3 & 0xf) << 12);
+  const t1 =
+    ((b0 >> 4) & 0xf) |
+    (((b1 >> 4) & 0xf) << 4) |
+    (((b2 >> 4) & 0xf) << 8) |
+    (((b3 >> 4) & 0xf) << 12);
+  const t2 =
+    ((b0 >> 8) & 0xf) |
+    (((b1 >> 8) & 0xf) << 4) |
+    (((b2 >> 8) & 0xf) << 8) |
+    (((b3 >> 8) & 0xf) << 12);
+  const t3 =
+    ((b0 >> 12) & 0xf) |
+    (((b1 >> 12) & 0xf) << 4) |
+    (((b2 >> 12) & 0xf) << 8) |
+    (((b3 >> 12) & 0xf) << 12);
+
   return (
-    ROW_SCORE[board[0]] +
-    ROW_SCORE[board[1]] +
-    ROW_SCORE[board[2]] +
-    ROW_SCORE[board[3]] +
-    ROW_SCORE[t[0]] +
-    ROW_SCORE[t[1]] +
-    ROW_SCORE[t[2]] +
-    ROW_SCORE[t[3]]
+    ROW_SCORE[b0] +
+    ROW_SCORE[b1] +
+    ROW_SCORE[b2] +
+    ROW_SCORE[b3] +
+    ROW_SCORE[t0] +
+    ROW_SCORE[t1] +
+    ROW_SCORE[t2] +
+    ROW_SCORE[t3]
   );
 }

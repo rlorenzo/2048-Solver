@@ -8,13 +8,13 @@
 // probabilities would compute and then cache different answers. Depth is the
 // sole budget; that's sufficient given our adaptive-depth bounds.
 
-import { bitMove, countEmpty, bitCanMove, keyOf } from "./bitboard.js";
+import { bitMove, countEmpty, keyOf } from "./bitboard.js";
 import { evaluate } from "./heuristics.js";
 
 // Transposition cache, reset per search.
 let cache;
 
-function adaptiveDepth(board, userDepth) {
+export function adaptiveDepth(board, userDepth) {
   if (userDepth !== "auto") return userDepth;
   const empties = countEmpty(board);
   // Deeper when danger is higher, shallower when early game.
@@ -50,7 +50,6 @@ export function bestMove(board, userDepth = "auto") {
 
 function maxNode(board, depth) {
   if (depth <= 0) return evaluate(board);
-  if (!bitCanMove(board)) return evaluate(board);
 
   const key = keyOf(board) + "m" + depth;
   const hit = cache.get(key);
@@ -71,7 +70,11 @@ function maxNode(board, depth) {
 function chanceNode(board, depth) {
   if (depth <= 0) return evaluate(board);
 
-  // Enumerate empty positions
+  const key = keyOf(board) + "c" + depth;
+  const hit = cache.get(key);
+  if (hit !== undefined) return hit;
+
+  // Enumerate empty positions (cache miss only)
   const positions = [];
   for (let pos = 0; pos < 16; pos++) {
     const row = pos >> 2;
@@ -79,10 +82,6 @@ function chanceNode(board, depth) {
     if (((board[row] >> (4 * col)) & 0xf) === 0) positions.push(pos);
   }
   if (positions.length === 0) return maxNode(board, depth);
-
-  const key = keyOf(board) + "c" + depth;
-  const hit = cache.get(key);
-  if (hit !== undefined) return hit;
 
   const perCell = 1 / positions.length;
   // Mutate board in place, then restore (faster than allocating per child).

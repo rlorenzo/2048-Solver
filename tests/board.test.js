@@ -224,6 +224,39 @@ describe("moveWithTrajectories", () => {
   });
 });
 
+describe("slideRowLeft vs slideRowLeftTracked (fuzz, via move()/moveWithTrajectories())", () => {
+  // slideRowLeft and slideRowLeftTracked are independent, unexported
+  // implementations in board.js. move() calls the former per row,
+  // moveWithTrajectories() calls the latter — so comparing their outputs on
+  // random single-row boards (with the other 3 rows empty) cross-checks the
+  // two implementations without needing to export either directly.
+  function lcg(seed) {
+    let a = seed >>> 0;
+    return () => {
+      a = (Math.imul(a, 1664525) + 1013904223) >>> 0;
+      return a / 0x100000000;
+    };
+  }
+
+  it("produces identical resulting rows and score gains across 1000 random rows", () => {
+    const rng = lcg(0x5eedface);
+    for (let trial = 0; trial < 1000; trial++) {
+      const row = [0, 0, 0, 0];
+      for (let i = 0; i < 4; i++) {
+        row[i] = rng() < 0.4 ? 0 : 1 + Math.floor(rng() * 6);
+      }
+      const b = boardFrom([...row, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+      const plain = move(b, DIR.LEFT);
+      const tracked = moveWithTrajectories(b, DIR.LEFT);
+
+      expect(Array.from(tracked.board)).toEqual(Array.from(plain.board));
+      expect(tracked.score).toBe(plain.score);
+      expect(tracked.moved).toBe(plain.moved);
+    }
+  });
+});
+
 describe("maxTile()", () => {
   it("returns 0 on empty board", () => {
     expect(maxTile(emptyBoard())).toBe(0);
