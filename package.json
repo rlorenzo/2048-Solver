@@ -2,6 +2,12 @@
   "name": "2048-solver",
   "version": "0.1.0",
   "private": true,
+  "homepage": "https://rlorenzo.github.io/2048-Solver/",
+  "bugs": "https://github.com/rlorenzo/2048-Solver/issues",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rlorenzo/2048-Solver.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vp dev",

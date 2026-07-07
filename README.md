@@ -115,7 +115,14 @@ src/
 │   └── worker.js      Web Worker wrapper (non-blocking AI)
 ├── ui/
 │   ├── board.js       Grid renderer with spawn/merge animations
-│   └── timeline.js    Scrubbable timeline with turn/branch markers
+│   ├── timeline.js    Scrubbable timeline with turn/branch markers
+│   ├── score-bars.js  Per-direction AI evaluation bars
+│   ├── grade-badge.js Move grade indicator
+│   ├── hint-overlay.js  AI hint arrow overlay
+│   ├── inspector.js   Timeline node inspector
+│   └── debrief.js     End-of-game debrief panel
+├── coaching/
+│   └── diagnose.js    Move grading and board analysis (pure, no DOM)
 └── share/
     └── url.js         Hash encode/decode (seed + packed moves)
 ```
