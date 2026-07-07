@@ -107,4 +107,12 @@ describe("encodeState / decodeState", () => {
     // "@" is outside the alphabet
     expect(decodeMoves("@@@@.4")).toEqual([]);
   });
+
+  it("rejects strings longer than the max possible valid encoding before any parsing", () => {
+    // Far longer than MAX_B64_LENGTH + max move-count digits + 1 could ever
+    // legitimately be — must be rejected the same way as other malformed
+    // input, without scanning for "." or slicing first.
+    const huge = "A".repeat(200000) + ".4";
+    expect(decodeMoves(huge)).toEqual([]);
+  });
 });
