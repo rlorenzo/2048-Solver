@@ -52,6 +52,15 @@ describe("anchor detection", () => {
     const d = diagnosePosition(b);
     expect(d.anchor.held).toBe(false);
   });
+
+  it("holds anchor when a duplicate max tile is in a corner even if the first one isn't", () => {
+    // First max (exp 11) in row-major order is at index 1 (row 0, col 1) —
+    // not a corner. A duplicate exp-11 tile sits in the bottom-right corner.
+    const b = board([5, 11, 3, 2, 4, 6, 3, 1, 3, 2, 1, 0, 2, 1, 0, 11]);
+    const d = diagnosePosition(b);
+    expect(d.anchor.held).toBe(true);
+    expect(d.anchor.corner).toBe("bottom-right");
+  });
 });
 
 // ---- Monotonicity ----
@@ -167,6 +176,15 @@ describe("merge chain", () => {
     // Chain bends: 11 at (0,0), 10 at (1,0), 9 at (1,1), 8 at (1,2)
     const b = board([11, 0, 0, 0, 10, 9, 8, 0, 0, 0, 7, 0, 0, 0, 0, 0]);
     expectReadyChain(diagnosePosition(b), 5); // 11->10->9->8->7
+  });
+
+  it("finds a chain from a duplicate max tile when the first one is isolated", () => {
+    // First max (exp 11) at index 0 is isolated. A duplicate max at index 12
+    // (bottom-left) starts a real length-4 chain: 11->10->9->8 along the
+    // bottom row. The chain from the isolated tile alone would report
+    // longestRun 1 / status "none", missing this real chain.
+    const b = board([11, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 11, 10, 9, 8]);
+    expectReadyChain(diagnosePosition(b), 4);
   });
 });
 

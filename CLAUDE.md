@@ -12,7 +12,7 @@ vp check        # Lint + format check + type check
 vp lint         # Oxlint (type-aware)
 vp fmt          # Oxfmt
 vp check --fix  # Auto-fix lint/format issues
-pnpm check      # vp check + fallow audit (quality gate on changed files)
+pnpm check      # vp check + fallow audit against committed baselines (CI limits audit to changed files)
 pnpm fallow     # Full fallow report (dead code, dupes, complexity, hotspots)
 ```
 

@@ -66,15 +66,7 @@ const btnPlayPauseM = document.getElementById("btn-playpause-m");
 const boardRenderer = createBoardRenderer(boardEl);
 const timelineRenderer = createTimelineRenderer(
   timelineEl,
-  (nodeId) => {
-    if (!state.history.jumpTo(nodeId)) return;
-    cancelHint();
-    cancelGrade();
-    syncHintModeForCurrentNode();
-    restoreGradeFromCache();
-    renderAll();
-    syncURL();
-  },
+  (nodeId) => navigateHistory(() => state.history.jumpTo(nodeId)),
   (nodeId, triggerEl) => {
     if (nodeId === null) {
       inspectorRenderer.hide();
@@ -337,8 +329,8 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
 
 // Apply a move from the CURRENT cursor position. Generates the next spawn
 // using an RNG seeded from (seed, move-path) so spawns are deterministic per
-// branch. Computes the path hash incrementally to avoid O(n) movesFromRoot()
-// on every move.
+// branch. Computes the path hash incrementally to avoid rebuilding the full
+// move path on every move.
 function applyMove(dir, opts = {}) {
   const cur = state.history.current();
   const useTrajectories = !opts.silent && !(aiRunning && speedMs() < 300);
@@ -882,26 +874,6 @@ function checkDebrief() {
   }
 }
 
-// --- Branch comparison
-
-// Initialize compare board thumbnails with 16 cells each
-const compareBoardIds = [
-  "compare-board-a3",
-  "compare-board-a5",
-  "compare-board-b3",
-  "compare-board-b5",
-];
-for (const id of compareBoardIds) {
-  const el = document.getElementById(id);
-  if (el) {
-    for (let i = 0; i < 16; i++) {
-      const cell = document.createElement("div");
-      cell.className = "inspector-cell";
-      el.appendChild(cell);
-    }
-  }
-}
-
 async function aiStep() {
   if (replayMode) {
     if (!state.history.stepForward()) {
@@ -1017,20 +989,26 @@ const ARROW_TO_DIR = {
   ArrowLeft: DIR.LEFT,
 };
 
-// Shift+arrow scrubs the history cursor. Cancels AI/hint/grade work first.
-function scrubHistory(direction) {
-  if (aiRunning) stopAI();
+// Move the history cursor via `mutate` (stepBack/stepForward/jumpTo).
+// Always stops autoplay first: aiStep applies its move to whatever node is
+// current when the worker responds, so navigating with a request in flight
+// would graft that move onto the node we just jumped to.
+function navigateHistory(mutate) {
+  stopAI();
   cancelHint();
   cancelGrade();
-  if (direction === "back") {
-    state.history.stepBack();
-  } else {
-    state.history.stepForward();
-  }
+  if (mutate() === false) return;
   syncHintModeForCurrentNode();
   restoreGradeFromCache();
   renderAll();
   syncURL();
+}
+
+// Shift+arrow scrubs the history cursor.
+function scrubHistory(direction) {
+  navigateHistory(() =>
+    direction === "back" ? state.history.stepBack() : state.history.stepForward(),
+  );
 }
 
 window.addEventListener("keydown", (e) => {
@@ -1045,6 +1023,8 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (isInteractiveTarget(e.target)) return;
+  // Leave browser shortcuts alone (Ctrl+N, Cmd+H, Alt+Arrow history nav, ...)
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
 
   if (e.shiftKey && (k === "ArrowLeft" || k === "ArrowRight")) {
     e.preventDefault();
@@ -1152,24 +1132,11 @@ seedInput.addEventListener("keydown", (e) => {
 });
 
 function handleUndo() {
-  stopAI();
-  cancelHint();
-  cancelGrade();
-  state.history.stepBack();
-  syncHintModeForCurrentNode();
-  restoreGradeFromCache();
-  renderAll();
-  syncURL();
+  navigateHistory(() => state.history.stepBack());
 }
 
 function handleRedo() {
-  cancelHint();
-  cancelGrade();
-  state.history.stepForward();
-  syncHintModeForCurrentNode();
-  restoreGradeFromCache();
-  renderAll();
-  syncURL();
+  navigateHistory(() => state.history.stepForward());
 }
 
 function toggleAI() {
@@ -1192,6 +1159,14 @@ btnWinContinue.addEventListener("click", () => {
 });
 btnWinNew.addEventListener("click", () => {
   newGame(randomizeSeedInput());
+});
+
+depthSelect.addEventListener("change", () => {
+  // Cached hints/scores were computed at the previous depth — drop them so
+  // revisited nodes get fresh evaluations instead of stale-depth results.
+  aiResults.clear();
+  cancelHint();
+  if (!aiRunning) syncHintModeForCurrentNode();
 });
 
 speedInput.addEventListener("input", () => {

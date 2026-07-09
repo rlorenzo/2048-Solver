@@ -31,8 +31,15 @@ const NONNEG_INT_RE = /^\d+$/;
 const INT_RE = /^-?\d+$/;
 const BASE36_RE = /^[0-9a-z]+$/;
 
+// Longest an encoding could ever legitimately be: the base64 payload plus a
+// "." separator plus the base-36 move-count suffix.
+const MAX_INPUT_LENGTH = MAX_B64_LENGTH + MAX_MOVE_COUNT_LEN + 1;
+
 export function decodeMoves(str) {
   if (!str) return [];
+  // Cheap upfront guard: reject grossly oversized strings before doing any
+  // scanning (indexOf) or slicing on attacker-controlled input.
+  if (str.length > MAX_INPUT_LENGTH) return [];
   const dot = str.indexOf(".");
   if (dot < 0) return [];
   const b64 = str.slice(0, dot);

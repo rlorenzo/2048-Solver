@@ -67,9 +67,10 @@ describe("History", () => {
     // branch A: UP then RIGHT
     const h = historyWith([0, 1], (i) => 4 * (i + 1));
     h.stepBack(); // back to node after UP
-    expect(h.siblings().length).toBe(1);
+    expect(h.current().children.size).toBe(1);
     h.record(2, makeBoard(9), 12, null); // play DOWN — creates sibling
-    expect(h.siblings().length).toBe(2);
+    h.stepBack(); // record advanced the cursor to the new child
+    expect(h.current().children.size).toBe(2);
   });
 
   it("reuses identical-spawn child on replay", () => {
@@ -82,11 +83,6 @@ describe("History", () => {
     expect(reused).toBe(childId);
   });
 
-  it("movesFromRoot returns directions along path", () => {
-    const h = historyWith([0, 1, 2]);
-    expect(h.movesFromRoot()).toEqual([0, 1, 2]);
-  });
-
   it("preferredPathFromRoot includes future nodes on the visible branch", () => {
     const h = historyWith([0, 1, 2]);
     h.stepBack();
@@ -95,18 +91,5 @@ describe("History", () => {
     const visible = h.preferredPathFromRoot();
     expect(visible.map((node) => node.dir)).toEqual([null, 0, 1, 2]);
     expect(h.current().dir).toBe(0);
-  });
-
-  it("branchPointsOnPath identifies forks", () => {
-    const h = new History(makeBoard(1));
-    h.record(0, makeBoard(2), 0, null);
-    const forkNodeId = h.current().id;
-    h.record(1, makeBoard(3), 0, null);
-    h.jumpTo(forkNodeId);
-    h.record(2, makeBoard(4), 0, null); // fork: node at depth 1 now has 2 children
-    // The current path is [root, depth1, depth2-via-DOWN]. The depth-2 node
-    // should be flagged as a branch point (its parent has >1 child).
-    const bp = h.branchPointsOnPath();
-    expect(bp.length).toBe(1);
   });
 });

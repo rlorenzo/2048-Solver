@@ -20,6 +20,17 @@ describe("bitboard conversions", () => {
     expect(Array.from(round)).toEqual(Array.from(bytes));
   });
 
+  it("clamps exponents above 15 to 15 (tiles beyond 32768)", () => {
+    const bytes = new Uint8Array(16);
+    bytes[0] = 16; // one over the nibble's max
+    bytes[5] = 255; // far over
+    bytes[15] = 15; // already at the clamp boundary, unaffected
+    const bits = fromBytes(bytes);
+    expect(getCell(bits, 0)).toBe(15);
+    expect(getCell(bits, 5)).toBe(15);
+    expect(getCell(bits, 15)).toBe(15);
+  });
+
   it("getCell reads cells back", () => {
     const bits = fromBytes(new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0]));
     for (let i = 0; i < 16; i++) {
