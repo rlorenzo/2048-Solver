@@ -121,6 +121,7 @@ export class History {
   }
 
   // Walk back from cursor to root, returning nodes in order root -> cursor.
+  // fallow-ignore-next-line unused-class-member
   pathToCursor() {
     const path = [];
     let id = this.cursor;
@@ -148,34 +149,7 @@ export class History {
     return path;
   }
 
-  // Get the sequence of moves from root to cursor
-  movesFromRoot() {
-    return this.pathToCursor()
-      .filter((n) => n.dir !== null)
-      .map((n) => n.dir);
-  }
-
   depth() {
     return this.current().depth;
-  }
-
-  // Return sibling alternatives at the current cursor's parent
-  siblings() {
-    const cur = this.current();
-    if (cur.parent === null) return [];
-    const parent = this.nodes.get(cur.parent);
-    return [...parent.children.values()];
-  }
-
-  // Find all branch points along the current path (nodes where the parent
-  // has >1 child, i.e. where an alternative exists).
-  branchPointsOnPath() {
-    const path = this.pathToCursor();
-    const result = [];
-    for (let i = 1; i < path.length; i++) {
-      const parent = this.nodes.get(path[i].parent);
-      if (parent.children.size > 1) result.push(path[i].id);
-    }
-    return result;
   }
 }

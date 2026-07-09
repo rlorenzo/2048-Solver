@@ -329,8 +329,8 @@ function newGame(seed, replayMoves = [], replayCursor = null) {
 
 // Apply a move from the CURRENT cursor position. Generates the next spawn
 // using an RNG seeded from (seed, move-path) so spawns are deterministic per
-// branch. Computes the path hash incrementally to avoid O(n) movesFromRoot()
-// on every move.
+// branch. Computes the path hash incrementally to avoid rebuilding the full
+// move path on every move.
 function applyMove(dir, opts = {}) {
   const cur = state.history.current();
   const useTrajectories = !opts.silent && !(aiRunning && speedMs() < 300);
